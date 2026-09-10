@@ -41,7 +41,11 @@ export default function TopUpdateAlertBar({
   };
 
   const handleStartDownload = async () => {
-    // If electron has a trigger or settings view
+    try {
+      await electronBridge.downloadUpdate();
+    } catch (err) {
+      console.error('Failed to trigger update download:', err);
+    }
     if (onOpenSettings) {
       onOpenSettings();
     }
@@ -51,7 +55,7 @@ export default function TopUpdateAlertBar({
   const isDownloading = updateState.status === 'downloading';
   const isAvailable = updateState.status === 'available';
 
-  const percent = updateState.percent ?? (isDownloaded ? 100 : isDownloading ? 45 : 0);
+  const percent = updateState.percent ?? (isDownloaded ? 100 : 0);
   const remainingPercent =
     updateState.remainingPercent ?? Math.max(0, 100 - percent);
 
@@ -61,12 +65,12 @@ export default function TopUpdateAlertBar({
     return (bytes / (1024 * 1024)).toFixed(1);
   };
 
-  const transferredMB = formatMB(updateState.transferred) || (isDownloading ? '34.2' : '72.8');
-  const totalMB = formatMB(updateState.total) || '72.8';
+  const transferredMB = formatMB(updateState.transferred);
+  const totalMB = formatMB(updateState.total);
   const speedKBs = updateState.bytesPerSecond
     ? Math.round(updateState.bytesPerSecond / 1024)
-    : 1840;
-  const speedText = speedKBs > 1024 ? `${(speedKBs / 1024).toFixed(1)} MB/s` : `${speedKBs} KB/s`;
+    : 0;
+  const speedText = speedKBs > 1024 ? `${(speedKBs / 1024).toFixed(1)} MB/s` : speedKBs > 0 ? `${speedKBs} KB/s` : 'Network stream';
 
   return (
     <AnimatePresence>
@@ -150,7 +154,11 @@ export default function TopUpdateAlertBar({
                   Remaining: {remainingPercent}%
                 </span>
                 <span className="text-slate-400 text-[10px]">
-                  {transferredMB} MB / {totalMB} MB
+                  {transferredMB && totalMB
+                    ? `${transferredMB} MB / ${totalMB} MB`
+                    : transferredMB
+                    ? `${transferredMB} MB`
+                    : ''}
                 </span>
               </div>
 
@@ -180,7 +188,7 @@ export default function TopUpdateAlertBar({
               <span className="text-slate-500">•</span>
               <span className="text-slate-400">0% Remaining</span>
               <span className="text-slate-500">•</span>
-              <span className="text-slate-300">{totalMB} MB Verified</span>
+              <span className="text-slate-300">{totalMB ? `${totalMB} MB Verified` : 'Verified Staged'}</span>
             </div>
           )}
 

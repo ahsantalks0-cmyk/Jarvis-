@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Auto-Updater Controls & Listeners
   checkForUpdates: () => ipcRenderer.invoke('updater:check-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download-update'),
   installUpdate: () => ipcRenderer.invoke('updater:install-update'),
   onUpdateStatus: (callback) => {
     const subscription = (_event, data) => callback(data);

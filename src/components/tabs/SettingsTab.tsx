@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   RefreshCw,
   Download,
@@ -9,10 +9,9 @@ import {
   HardDrive,
   Github,
   Sparkles,
-  ArrowDownCircle,
-  Play
+  ArrowDownCircle
 } from 'lucide-react';
-import { UpdateState, UpdateStatus } from '../../types';
+import { UpdateState } from '../../types';
 import { electronBridge } from '../../lib/electronBridge';
 import UpdateProgressBar from '../UpdateProgressBar';
 
@@ -26,7 +25,6 @@ export default function SettingsTab() {
   });
   const [isChecking, setIsChecking] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
-  const simIntervalRef = useRef<any>(null);
 
   // General toggles
   const [autoLaunch, setAutoLaunch] = useState(false);
@@ -86,125 +84,12 @@ export default function SettingsTab() {
     await electronBridge.installUpdate();
   };
 
-  const startLiveDownloadSimulation = () => {
-    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
-    let currentPercent = 15;
-    const totalBytes = 76540000;
-
-    const updateStep = () => {
-      const remainingPercent = Math.max(0, 100 - currentPercent);
-      const transferred = Math.round((currentPercent / 100) * totalBytes);
-      const speed = 2400000 + Math.floor(Math.random() * 500000);
-
-      const newState: UpdateState = {
-        status: currentPercent >= 100 ? 'downloaded' : 'downloading',
-        version: '1.1.2',
-        percent: currentPercent,
-        remainingPercent,
-        transferred,
-        total: totalBytes,
-        bytesPerSecond: speed,
-        message:
-          currentPercent >= 100
-            ? 'Update v1.1.2 downloaded successfully (100%). Ready to restart & install.'
-            : `Downloading update package (${currentPercent}% downloaded, ${remainingPercent}% remaining)...`,
-        lastChecked: new Date().toLocaleTimeString()
-      };
-
-      setUpdateState(newState);
-      electronBridge.dispatchUpdate(newState);
-
-      if (currentPercent >= 100) {
-        clearInterval(simIntervalRef.current);
-      } else {
-        currentPercent += 17;
-        if (currentPercent > 100) currentPercent = 100;
-      }
-    };
-
-    updateStep();
-    simIntervalRef.current = setInterval(updateStep, 1000);
-  };
-
-  const simulateUpdateStatus = (status: UpdateStatus) => {
-    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
-    let newState: UpdateState;
-    switch (status) {
-      case 'checking':
-        setIsChecking(true);
-        newState = {
-          status: 'checking',
-          version: appVersion,
-          message: 'Checking for updates on GitHub...',
-          lastChecked: new Date().toLocaleTimeString()
-        };
-        break;
-      case 'available':
-        setIsChecking(false);
-        newState = {
-          status: 'available',
-          version: '1.1.2',
-          message: 'Update v1.1.2 available — click to download or install.',
-          lastChecked: new Date().toLocaleTimeString()
-        };
-        break;
-      case 'downloading':
-        setIsChecking(false);
-        newState = {
-          status: 'downloading',
-          version: '1.1.2',
-          percent: 64,
-          remainingPercent: 36,
-          transferred: 48900000,
-          total: 76540000,
-          bytesPerSecond: 2450000,
-          message: 'Downloading update package (64% downloaded, 36% remaining)...',
-          lastChecked: new Date().toLocaleTimeString()
-        };
-        break;
-      case 'downloaded':
-        setIsChecking(false);
-        newState = {
-          status: 'downloaded',
-          version: '1.1.2',
-          percent: 100,
-          remainingPercent: 0,
-          transferred: 76540000,
-          total: 76540000,
-          message: 'Update v1.1.2 downloaded (100% complete). Restart to update.',
-          lastChecked: new Date().toLocaleTimeString()
-        };
-        break;
-      case 'up-to-date':
-        setIsChecking(false);
-        newState = {
-          status: 'up-to-date',
-          version: appVersion,
-          message: `Jarvis is up to date (v${appVersion})`,
-          lastChecked: new Date().toLocaleTimeString()
-        };
-        break;
-      case 'error':
-        setIsChecking(false);
-        newState = {
-          status: 'error',
-          version: appVersion,
-          message: 'Update check failed: GitHub API HTTP 404 (Release asset missing or network timeout)',
-          error: 'HTTP 404: The release asset or manifest could not be retrieved from repository ahsantalks0-cmyk/Jarvis-.',
-          lastChecked: new Date().toLocaleTimeString()
-        };
-        break;
-      default:
-        setIsChecking(false);
-        newState = {
-          status: 'idle',
-          version: appVersion,
-          message: 'Ready to check releases.',
-          lastChecked: new Date().toLocaleTimeString()
-        };
+  const handleDownloadUpdate = async () => {
+    try {
+      await electronBridge.downloadUpdate();
+    } catch (err) {
+      console.error('Download update error:', err);
     }
-    setUpdateState(newState);
-    electronBridge.dispatchUpdate(newState);
   };
 
   return (
@@ -367,11 +252,11 @@ export default function SettingsTab() {
                   </div>
                   <button
                     id="btn-start-download"
-                    onClick={startLiveDownloadSimulation}
+                    onClick={handleDownloadUpdate}
                     className="px-3.5 py-1.5 rounded-lg bg-[#0df597] text-[#06080d] font-bold text-xs hover:bg-[#0be08a] transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(13,245,151,0.35)] cursor-pointer font-tech tracking-wide"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>DOWNLOAD & INSTALL</span>
+                    <span>DOWNLOAD UPDATE</span>
                   </button>
                 </div>
               )}
@@ -417,33 +302,6 @@ export default function SettingsTab() {
               </div>
             </div>
           )}
-
-          {/* Developer Status Simulation Controls (Allows user to preview all states) */}
-          <div className="pt-2 border-t border-[#121622] flex flex-wrap items-center gap-2 text-[10px] font-mono-tech">
-            <span className="text-slate-500">PREVIEW STATE:</span>
-            {(['checking', 'available', 'downloading', 'downloaded', 'up-to-date', 'error'] as UpdateStatus[]).map((st) => (
-              <button
-                key={st}
-                onClick={() => simulateUpdateStatus(st)}
-                className={`px-2 py-0.5 rounded border transition-all ${
-                  updateState.status === st
-                    ? 'bg-[#121927] text-[#0df597] border-[#22314d]'
-                    : 'bg-[#080a11] text-slate-400 border-[#141824] hover:text-slate-200'
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-
-            <button
-              onClick={startLiveDownloadSimulation}
-              className="px-2 py-0.5 rounded border border-[#164d6e] bg-[#0c2436] text-[#00e5ff] hover:bg-[#12364f] flex items-center gap-1 font-bold ml-auto"
-              title="Test live downloading progress animation"
-            >
-              <Play className="w-2.5 h-2.5" />
-              <span>Simulate Live Download (15% → 100%)</span>
-            </button>
-          </div>
         </div>
       </div>
 

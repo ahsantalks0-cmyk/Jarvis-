@@ -262,6 +262,17 @@ const handleCheckUpdates = async () => {
 ipcMain.handle('updater:check-updates', handleCheckUpdates);
 ipcMain.handle('check-for-updates', handleCheckUpdates);
 
+ipcMain.handle('updater:download-update', async () => {
+  console.log('[AutoUpdater] Manual download requested by renderer...');
+  try {
+    return await autoUpdater.downloadUpdate();
+  } catch (err) {
+    const errorMsg = err?.message || String(err);
+    console.error('[AutoUpdater] Download error:', errorMsg);
+    throw err;
+  }
+});
+
 ipcMain.handle('updater:install-update', () => {
   console.log('[AutoUpdater] Executing quitAndInstall()...');
   autoUpdater.quitAndInstall(false, true);

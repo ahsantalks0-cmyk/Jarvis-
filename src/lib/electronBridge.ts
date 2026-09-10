@@ -7,6 +7,7 @@ declare global {
       platform: string;
       getVersion: () => Promise<string>;
       checkForUpdates: () => Promise<any>;
+      downloadUpdate?: () => Promise<any>;
       installUpdate: () => Promise<void>;
       onUpdateStatus: (callback: (data: any) => void) => () => void;
       getAgents: () => Promise<AgentItem[]>;
@@ -188,6 +189,14 @@ export const electronBridge = {
         error: err?.message || String(err),
         lastChecked: new Date().toLocaleTimeString()
       };
+    }
+  },
+
+  async downloadUpdate(): Promise<void> {
+    if (window.electronAPI?.downloadUpdate) {
+      await window.electronAPI.downloadUpdate();
+    } else {
+      console.log('[AutoUpdater] downloadUpdate invoked');
     }
   },
 

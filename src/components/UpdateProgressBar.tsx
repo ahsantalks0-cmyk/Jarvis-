@@ -33,10 +33,10 @@ export default function UpdateProgressBar({
     return (bytes / (1024 * 1024)).toFixed(1);
   };
 
-  const transferredMB = formatMB(transferredBytes) || (safePercent > 0 ? (safePercent * 0.74).toFixed(1) : '0.0');
-  const totalMB = formatMB(totalBytes) || '74.0';
-  const speedKBs = bytesPerSecond ? Math.round(bytesPerSecond / 1024) : 2100;
-  const speedText = speedKBs > 1024 ? `${(speedKBs / 1024).toFixed(1)} MB/s` : `${speedKBs} KB/s`;
+  const transferredMB = formatMB(transferredBytes);
+  const totalMB = formatMB(totalBytes);
+  const speedKBs = bytesPerSecond ? Math.round(bytesPerSecond / 1024) : 0;
+  const speedText = speedKBs > 1024 ? `${(speedKBs / 1024).toFixed(1)} MB/s` : speedKBs > 0 ? `${speedKBs} KB/s` : 'Active stream';
 
   if (compact) {
     return (
@@ -110,7 +110,11 @@ export default function UpdateProgressBar({
             <span>Progress: {safePercent}% / 100%</span>
           </span>
           <span className="text-slate-400 text-[10px]">
-            {transferredMB} MB of {totalMB} MB
+            {transferredMB && totalMB
+              ? `${transferredMB} MB of ${totalMB} MB`
+              : transferredMB
+              ? `${transferredMB} MB downloaded`
+              : `${safePercent}% completed`}
           </span>
         </div>
 
