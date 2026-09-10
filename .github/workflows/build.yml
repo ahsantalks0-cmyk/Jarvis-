@@ -23,7 +23,7 @@ jobs:
         run: npm install
 
       - name: Build app files
-        run: npm run dist
+        run: npm run dist -- --publish never
 
       - name: Get version from package.json
         id: version
@@ -37,6 +37,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
           draft: false
+          fail_on_unmatched_files: true
           files: |
             dist/*.exe
             dist/*.blockmap
