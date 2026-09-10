@@ -205,7 +205,7 @@ export default function BrainApiTab() {
                 Command Center // Brain API
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono-tech bg-[#0b1713] text-[#0df597] border border-[#133827]">
-                MULTI-AI CORE v1.1.0
+                MULTI-AI CORE v1.1.1
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-tech bg-[#0f1422] text-cyan-400 border border-[#1d273f]">
                 AUTO-FAILOVER ENGINE

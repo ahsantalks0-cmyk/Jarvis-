@@ -37,7 +37,7 @@ const initialMessages: Message[] = [
   {
     id: 'msg-1',
     sender: 'jarvis',
-    text: 'Jarvis Neural Interface initialized with Brain API multi-provider routing (v1.1.0). Standing by for voice or text instructions.',
+    text: 'Jarvis Neural Interface initialized with Brain API multi-provider routing (v1.1.1). Standing by for voice or text instructions.',
     time: '12:01:10 PM',
     providerBadge: 'Brain API Engine'
   },
@@ -50,7 +50,7 @@ const initialMessages: Message[] = [
   {
     id: 'msg-3',
     sender: 'jarvis',
-    text: 'All neural matrices nominal. Brain API provider router online with automatic failover, priority scheduling, and SafeStorage encryption. Auto-updater linked to v1.1.0 release channel.',
+    text: 'All neural matrices nominal. Brain API provider router online with automatic failover, priority scheduling, and SafeStorage encryption. Auto-updater linked to v1.1.1 release channel.',
     time: '12:01:22 PM',
     providerBadge: 'System Core',
     latencyMs: 14,
@@ -576,7 +576,7 @@ export default function ChatTab() {
 
           <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono-tech text-slate-500 px-1">
             <span>{statusHint}</span>
-            <span className="text-slate-600 font-bold">v1.1.0</span>
+            <span className="text-slate-600 font-bold">v1.1.1</span>
           </div>
         </div>
       </aside>

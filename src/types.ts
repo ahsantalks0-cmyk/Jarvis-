@@ -37,7 +37,13 @@ export interface UpdateState {
   version?: string;
   message: string;
   percent?: number;
+  remainingPercent?: number;
+  transferred?: number;
+  total?: number;
+  bytesPerSecond?: number;
   lastChecked?: string;
+  error?: string;
+  releaseNotes?: string;
 }
 
 export interface ActivityLogItem {

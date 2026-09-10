@@ -9,16 +9,29 @@ import { fileURLToPath } from 'url';
 import electronUpdater from 'electron-updater';
 import agentRegistry from './agent-registry.js';
 
-const { autoUpdater } = electronUpdater;
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow = null;
 
 // Configure Auto-Updater
+const autoUpdater = electronUpdater.autoUpdater || electronUpdater;
+autoUpdater.logger = console;
 autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.allowPrerelease = false;
+
+// Explicit GitHub feed configuration fallback
+try {
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'ahsantalks0-cmyk',
+    repo: 'Jarvis-'
+  });
+  console.log('[AutoUpdater] Configured GitHub feed: ahsantalks0-cmyk/Jarvis-');
+} catch (feedErr) {
+  console.warn('[AutoUpdater] setFeedURL warning:', feedErr?.message || feedErr);
+}
 
 function sendToWindow(channel, data) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -29,62 +42,97 @@ function sendToWindow(channel, data) {
   }
 }
 
-// Auto-updater event wiring
+// Auto-updater event wiring with comprehensive logging
 autoUpdater.on('checking-for-update', () => {
+  console.log('[AutoUpdater] [CHECKING] Contacting GitHub releases repository (ahsantalks0-cmyk/Jarvis-)...');
   sendToWindow('updater:status', {
     status: 'checking',
-    message: 'Connecting to GitHub repository releases...',
+    message: 'Checking for updates on GitHub...',
+    lastChecked: new Date().toLocaleTimeString(),
     timestamp: new Date().toISOString()
   });
 });
 
 autoUpdater.on('update-available', (info) => {
+  console.log(`[AutoUpdater] [AVAILABLE] Update v${info?.version} found! (current: v${app.getVersion()})`);
   sendToWindow('updater:status', {
     status: 'available',
-    version: info.version,
-    releaseDate: info.releaseDate,
-    message: `New update available: v${info.version}`,
+    version: info?.version,
+    releaseDate: info?.releaseDate,
+    releaseNotes: info?.releaseNotes,
+    message: `Update v${info?.version} available — downloading...`,
+    lastChecked: new Date().toLocaleTimeString(),
     timestamp: new Date().toISOString()
   });
 });
 
 autoUpdater.on('update-not-available', (info) => {
+  const currentVersion = app.getVersion();
+  console.log(`[AutoUpdater] [NOT-AVAILABLE] Current version (v${currentVersion}) is up to date.`);
   sendToWindow('updater:status', {
     status: 'up-to-date',
-    version: app.getVersion(),
-    message: `Jarvis is up to date (v${app.getVersion()}).`,
+    version: currentVersion,
+    message: `Jarvis is up to date (v${currentVersion})`,
+    lastChecked: new Date().toLocaleTimeString(),
     timestamp: new Date().toISOString()
   });
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
+  const percent = Math.round(progressObj?.percent || 0);
+  const remainingPercent = Math.max(0, 100 - percent);
+  const transferred = progressObj?.transferred || 0;
+  const total = progressObj?.total || 0;
+  const speed = Math.round((progressObj?.bytesPerSecond || 0) / 1024);
+  console.log(`[AutoUpdater] [PROGRESS] ${percent}% (${transferred}/${total} bytes @ ${speed} KB/s, remaining: ${remainingPercent}%)`);
   sendToWindow('updater:status', {
     status: 'downloading',
-    percent: Math.round(progressObj.percent || 0),
-    transferred: progressObj.transferred,
-    total: progressObj.total,
-    message: `Downloading update package (${Math.round(progressObj.percent || 0)}%)...`,
+    percent: percent,
+    remainingPercent: remainingPercent,
+    transferred: transferred,
+    total: total,
+    bytesPerSecond: progressObj?.bytesPerSecond || 0,
+    message: `Downloading update package (${percent}% downloaded, ${remainingPercent}% remaining)...`,
+    lastChecked: new Date().toLocaleTimeString(),
     timestamp: new Date().toISOString()
   });
 });
 
 autoUpdater.on('update-downloaded', (info) => {
+  console.log(`[AutoUpdater] [DOWNLOADED] Update v${info?.version} downloaded successfully and staged.`);
   sendToWindow('updater:status', {
     status: 'downloaded',
-    version: info.version,
-    message: `v${info.version} downloaded. Will install on restart.`,
+    version: info?.version,
+    message: `Update v${info?.version} downloaded. Restart to update.`,
+    lastChecked: new Date().toLocaleTimeString(),
     timestamp: new Date().toISOString()
   });
 });
 
 autoUpdater.on('error', (err) => {
-  console.error('Auto-updater error:', err);
+  const errorMsg = err?.message || String(err);
+  console.error('[AutoUpdater] [ERROR] Auto-updater error:', err);
   sendToWindow('updater:status', {
     status: 'error',
-    message: err?.message || 'Could not verify updates with GitHub releases.',
+    message: `Update check failed: ${errorMsg}`,
+    error: err?.stack || errorMsg,
+    lastChecked: new Date().toLocaleTimeString(),
     timestamp: new Date().toISOString()
   });
 });
+
+// Periodic check every 30 minutes while app is running
+const PERIODIC_CHECK_MS = 30 * 60 * 1000;
+setInterval(() => {
+  if (app.isPackaged) {
+    console.log('[AutoUpdater] Running scheduled 30-minute autoUpdater.checkForUpdatesAndNotify()...');
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error('[AutoUpdater] Periodic update check failed:', err?.message || err);
+    });
+  } else {
+    console.log('[AutoUpdater] Periodic check skipped (development mode).');
+  }
+}, PERIODIC_CHECK_MS);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -137,13 +185,26 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Check for updates shortly after launch
+  // Check for updates: 5 seconds after window finishes loading, ONLY when packaged
   mainWindow.webContents.on('did-finish-load', () => {
-    if (app.isPackaged) {
-      autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-        console.warn('Initial update check error:', err?.message);
-      });
-    }
+    console.log('[AutoUpdater] Window finished loading. Scheduling 5-second startup check for updates...');
+    setTimeout(() => {
+      if (app.isPackaged) {
+        console.log('[AutoUpdater] App is packaged. Initiating automatic startup check...');
+        autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+          const errorMsg = err?.message || String(err);
+          console.error('[AutoUpdater] Startup update check failed:', errorMsg);
+          sendToWindow('updater:status', {
+            status: 'error',
+            message: `Update check failed: ${errorMsg}`,
+            lastChecked: new Date().toLocaleTimeString(),
+            timestamp: new Date().toISOString()
+          });
+        });
+      } else {
+        console.log('[AutoUpdater] Dev mode detected (app.isPackaged is false). Skipping auto-update check.');
+      }
+    }, 5000);
   });
 }
 
@@ -152,57 +213,62 @@ ipcMain.handle('app:get-version', () => {
   return app.getVersion();
 });
 
-ipcMain.handle('updater:check-updates', async () => {
+const handleCheckUpdates = async () => {
+  console.log('[AutoUpdater] Manual check requested by renderer. isPackaged:', app.isPackaged);
   if (!app.isPackaged) {
-    return {
+    const devState = {
       status: 'up-to-date',
       simulated: true,
       version: app.getVersion(),
-      message: `Running in development mode. Version ${app.getVersion()} is active.`
+      message: `Jarvis is up to date (v${app.getVersion()}) [Dev mode]`,
+      lastChecked: new Date().toLocaleTimeString(),
+      timestamp: new Date().toISOString()
     };
+    sendToWindow('updater:status', devState);
+    return devState;
   }
-  try {
-    const result = await autoUpdater.checkForUpdates();
-    return {
-      status: 'checking',
-      updateInfo: result?.updateInfo
-    };
-  } catch (error) {
-    return {
-      status: 'error',
-      message: error?.message || 'Failed to check GitHub releases'
-    };
-  }
-});
 
-ipcMain.handle('check-for-updates', async () => {
-  if (!app.isPackaged) {
-    return {
-      status: 'up-to-date',
-      simulated: true,
-      version: app.getVersion(),
-      message: `Running in development mode. Version ${app.getVersion()} is active.`
-    };
-  }
+  sendToWindow('updater:status', {
+    status: 'checking',
+    version: app.getVersion(),
+    message: 'Checking for updates on GitHub...',
+    lastChecked: new Date().toLocaleTimeString(),
+    timestamp: new Date().toISOString()
+  });
+
   try {
     const result = await autoUpdater.checkForUpdates();
+    console.log('[AutoUpdater] Manual check completed. Found version:', result?.updateInfo?.version);
     return {
       status: 'checking',
-      updateInfo: result?.updateInfo
+      updateInfo: result?.updateInfo,
+      lastChecked: new Date().toLocaleTimeString()
     };
   } catch (error) {
-    return {
+    const errorMsg = error?.message || String(error);
+    console.error('[AutoUpdater] Manual check error:', errorMsg);
+    const errorState = {
       status: 'error',
-      message: error?.message || 'Failed to check GitHub releases'
+      version: app.getVersion(),
+      message: `Update check failed: ${errorMsg}`,
+      lastChecked: new Date().toLocaleTimeString(),
+      timestamp: new Date().toISOString()
     };
+    sendToWindow('updater:status', errorState);
+    return errorState;
   }
-});
+};
+
+ipcMain.handle('updater:check-updates', handleCheckUpdates);
+ipcMain.handle('check-for-updates', handleCheckUpdates);
 
 ipcMain.handle('updater:install-update', () => {
+  console.log('[AutoUpdater] Executing quitAndInstall()...');
   autoUpdater.quitAndInstall(false, true);
 });
 
 ipcMain.handle('install-update', () => {
+  console.log('[AutoUpdater] Executing quitAndInstall() via install-update...');
   autoUpdater.quitAndInstall(false, true);
 });
 

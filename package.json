@@ -1,7 +1,7 @@
 {
   "name": "jarvis",
   "productName": "Jarvis",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Personal AI Assistant - Luxury Desktop Interface",
   "author": "Ahsan",
   "main": "main.js",
@@ -18,20 +18,22 @@
   "build": {
     "appId": "com.ahsan.jarvis",
     "productName": "Jarvis",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "ahsantalks0-cmyk",
-      "repo": "Jarvis-",
-      "releaseType": "draft"
+      "repo": "Jarvis-"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "files": [
       "dist/**/*",

@@ -1,0 +1,27 @@
+appId: com.ahsan.jarvis
+productName: Jarvis
+artifactName: "${productName}-Setup-${version}.${ext}"
+
+publish:
+  provider: github
+  owner: ahsantalks0-cmyk
+  repo: Jarvis-
+
+win:
+  target: nsis
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+files:
+  - "dist/**/*"
+  - "main.js"
+  - "preload.js"
+  - "agent-registry.js"
+  - "index.html"
+  - "package.json"

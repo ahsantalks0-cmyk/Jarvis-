@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   RefreshCw,
   Download,
@@ -8,21 +8,25 @@ import {
   Sliders,
   HardDrive,
   Github,
-  Sparkles
+  Sparkles,
+  ArrowDownCircle,
+  Play
 } from 'lucide-react';
 import { UpdateState, UpdateStatus } from '../../types';
 import { electronBridge } from '../../lib/electronBridge';
+import UpdateProgressBar from '../UpdateProgressBar';
 
 export default function SettingsTab() {
-  const [appVersion, setAppVersion] = useState<string>('1.1.0');
+  const [appVersion, setAppVersion] = useState<string>('1.1.1');
   const [updateState, setUpdateState] = useState<UpdateState>({
     status: 'idle',
-    version: '1.1.0',
-    message: 'Version 1.1.0 installed. Up-to-date with GitHub release channel.',
+    version: '1.1.1',
+    message: 'Version 1.1.1 installed. Linked to GitHub release channel (ahsantalks0-cmyk/Jarvis-).',
     lastChecked: 'Just now'
   });
   const [isChecking, setIsChecking] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const simIntervalRef = useRef<any>(null);
 
   // General toggles
   const [autoLaunch, setAutoLaunch] = useState(false);
@@ -56,22 +60,23 @@ export default function SettingsTab() {
     setUpdateState({
       status: 'checking',
       version: appVersion,
-      message: 'Connecting to GitHub repository releases (ahsantalks0-cmyk/Jarvis-)...',
+      message: 'Checking for updates on GitHub (ahsantalks0-cmyk/Jarvis-)...',
       lastChecked: new Date().toLocaleTimeString()
     });
 
     try {
       const result = await electronBridge.checkForUpdates();
-      setTimeout(() => {
-        setUpdateState(result);
-        setIsChecking(false);
-      }, 1200);
+      setUpdateState(result);
     } catch (err: any) {
+      const errorMsg = err?.message || String(err);
       setUpdateState({
         status: 'error',
-        message: err?.message || 'Unable to fetch release metadata.',
+        version: appVersion,
+        message: `Update check failed: ${errorMsg}`,
+        error: errorMsg,
         lastChecked: new Date().toLocaleTimeString()
       });
+    } finally {
       setIsChecking(false);
     }
   };
@@ -81,72 +86,125 @@ export default function SettingsTab() {
     await electronBridge.installUpdate();
   };
 
+  const startLiveDownloadSimulation = () => {
+    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    let currentPercent = 15;
+    const totalBytes = 76540000;
+
+    const updateStep = () => {
+      const remainingPercent = Math.max(0, 100 - currentPercent);
+      const transferred = Math.round((currentPercent / 100) * totalBytes);
+      const speed = 2400000 + Math.floor(Math.random() * 500000);
+
+      const newState: UpdateState = {
+        status: currentPercent >= 100 ? 'downloaded' : 'downloading',
+        version: '1.1.2',
+        percent: currentPercent,
+        remainingPercent,
+        transferred,
+        total: totalBytes,
+        bytesPerSecond: speed,
+        message:
+          currentPercent >= 100
+            ? 'Update v1.1.2 downloaded successfully (100%). Ready to restart & install.'
+            : `Downloading update package (${currentPercent}% downloaded, ${remainingPercent}% remaining)...`,
+        lastChecked: new Date().toLocaleTimeString()
+      };
+
+      setUpdateState(newState);
+      electronBridge.dispatchUpdate(newState);
+
+      if (currentPercent >= 100) {
+        clearInterval(simIntervalRef.current);
+      } else {
+        currentPercent += 17;
+        if (currentPercent > 100) currentPercent = 100;
+      }
+    };
+
+    updateStep();
+    simIntervalRef.current = setInterval(updateStep, 1000);
+  };
+
   const simulateUpdateStatus = (status: UpdateStatus) => {
+    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    let newState: UpdateState;
     switch (status) {
       case 'checking':
         setIsChecking(true);
-        setUpdateState({
+        newState = {
           status: 'checking',
           version: appVersion,
-          message: 'Connecting to GitHub releases pipeline...',
+          message: 'Checking for updates on GitHub...',
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
         break;
       case 'available':
         setIsChecking(false);
-        setUpdateState({
+        newState = {
           status: 'available',
-          version: '1.0.4',
-          message: 'New update available: v1.0.4 (Release found on GitHub)',
+          version: '1.1.2',
+          message: 'Update v1.1.2 available — click to download or install.',
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
         break;
       case 'downloading':
         setIsChecking(false);
-        setUpdateState({
+        newState = {
           status: 'downloading',
-          version: '1.0.4',
-          percent: 72,
-          message: 'Downloading update binary package from GitHub (72%)...',
+          version: '1.1.2',
+          percent: 64,
+          remainingPercent: 36,
+          transferred: 48900000,
+          total: 76540000,
+          bytesPerSecond: 2450000,
+          message: 'Downloading update package (64% downloaded, 36% remaining)...',
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
         break;
       case 'downloaded':
         setIsChecking(false);
-        setUpdateState({
+        newState = {
           status: 'downloaded',
-          version: '1.0.4',
-          message: 'Update v1.0.4 downloaded and ready to install. Restart to apply.',
+          version: '1.1.2',
+          percent: 100,
+          remainingPercent: 0,
+          transferred: 76540000,
+          total: 76540000,
+          message: 'Update v1.1.2 downloaded (100% complete). Restart to update.',
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
         break;
       case 'up-to-date':
         setIsChecking(false);
-        setUpdateState({
+        newState = {
           status: 'up-to-date',
           version: appVersion,
-          message: `Jarvis is up to date (v${appVersion}). No newer releases found.`,
+          message: `Jarvis is up to date (v${appVersion})`,
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
         break;
       case 'error':
         setIsChecking(false);
-        setUpdateState({
+        newState = {
           status: 'error',
           version: appVersion,
-          message: 'GitHub rate limit exceeded or connection timed out.',
+          message: 'Update check failed: GitHub API HTTP 404 (Release asset missing or network timeout)',
+          error: 'HTTP 404: The release asset or manifest could not be retrieved from repository ahsantalks0-cmyk/Jarvis-.',
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
         break;
       default:
         setIsChecking(false);
-        setUpdateState({
+        newState = {
           status: 'idle',
           version: appVersion,
           message: 'Ready to check releases.',
           lastChecked: new Date().toLocaleTimeString()
-        });
+        };
     }
+    setUpdateState(newState);
+    electronBridge.dispatchUpdate(newState);
   };
 
   return (
@@ -185,7 +243,7 @@ export default function SettingsTab() {
                 Updates & Releases (electron-updater)
               </h2>
               <span className="text-[10px] font-mono-tech text-slate-500">
-                GITHUB RELEASES CI/CD PIPELINE • DRAFT RELEASE CHANNEL
+                GITHUB RELEASES CI/CD PIPELINE • PRODUCTION RELEASE CHANNEL
               </span>
             </div>
           </div>
@@ -203,15 +261,45 @@ export default function SettingsTab() {
 
         {/* Update Status Details Box */}
         <div className="p-4 rounded-xl bg-[#07090f] border border-[#141926] space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono-tech">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono-tech border-b border-[#141926] pb-2.5">
             <div className="flex items-center gap-2">
               <span className="text-slate-500">CURRENT INSTALLED VERSION:</span>
               <span className="px-2 py-0.5 rounded bg-[#0d121e] border border-[#1d273a] text-slate-100 font-bold">
                 v{appVersion}
               </span>
             </div>
-            <div className="text-slate-500 text-[11px]">
-              Last Checked: {updateState.lastChecked || 'Just now'}
+            {/* Explicit Last check: <time> — <result> as required */}
+            <div id="updater-last-check-indicator" className="text-slate-400 text-[11px] flex items-center gap-1.5 flex-wrap">
+              <span className="text-slate-500">Last check:</span>
+              <span className="text-slate-200 font-medium">{updateState.lastChecked || 'Never'}</span>
+              <span className="text-slate-600">—</span>
+              <span
+                className={`font-semibold ${
+                  updateState.status === 'up-to-date'
+                    ? 'text-[#0df597]'
+                    : updateState.status === 'error'
+                    ? 'text-rose-400'
+                    : updateState.status === 'available' || updateState.status === 'downloading'
+                    ? 'text-cyan-400'
+                    : updateState.status === 'downloaded'
+                    ? 'text-emerald-300'
+                    : 'text-slate-400'
+                }`}
+              >
+                {updateState.status === 'up-to-date'
+                  ? `Jarvis is up to date (v${appVersion})`
+                  : updateState.status === 'available'
+                  ? `Update v${updateState.version || ''} available — downloading...`
+                  : updateState.status === 'downloading'
+                  ? `Downloading package (${updateState.percent ?? 0}%)`
+                  : updateState.status === 'downloaded'
+                  ? `Update v${updateState.version || ''} downloaded`
+                  : updateState.status === 'error'
+                  ? updateState.message
+                  : updateState.status === 'checking'
+                  ? 'Checking for updates...'
+                  : 'Idle'}
+              </span>
             </div>
           </div>
 
@@ -250,17 +338,41 @@ export default function SettingsTab() {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 font-sans">
+              <p className="text-xs text-slate-300 font-sans">
                 {updateState.message}
               </p>
 
-              {/* Progress bar if downloading */}
-              {updateState.percent !== undefined && (
-                <div className="w-full bg-[#121622] h-2 rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="bg-[#0df597] h-full transition-all duration-300 shadow-[0_0_10px_#0df597]"
-                    style={{ width: `${updateState.percent}%` }}
+              {/* Comprehensive Progress Bar with % Downloaded and % Remaining */}
+              {(updateState.status === 'downloading' ||
+                updateState.percent !== undefined ||
+                updateState.status === 'downloaded') && (
+                <div className="pt-2">
+                  <UpdateProgressBar
+                    percent={updateState.percent ?? (updateState.status === 'downloaded' ? 100 : 0)}
+                    remainingPercent={updateState.remainingPercent}
+                    transferredBytes={updateState.transferred}
+                    totalBytes={updateState.total}
+                    bytesPerSecond={updateState.bytesPerSecond}
+                    isCompleted={updateState.status === 'downloaded'}
                   />
+                </div>
+              )}
+
+              {/* Action Banner if update is available */}
+              {updateState.status === 'available' && (
+                <div className="mt-3 flex items-center justify-between p-3 rounded-lg bg-[#0a1820] border border-[#1b3d52]">
+                  <div className="flex items-center gap-2 text-xs text-[#00e5ff] font-mono-tech">
+                    <Download className="w-4 h-4 text-[#00e5ff]" />
+                    <span>New version v{updateState.version || '1.1.2'} is ready to download!</span>
+                  </div>
+                  <button
+                    id="btn-start-download"
+                    onClick={startLiveDownloadSimulation}
+                    className="px-3.5 py-1.5 rounded-lg bg-[#0df597] text-[#06080d] font-bold text-xs hover:bg-[#0be08a] transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(13,245,151,0.35)] cursor-pointer font-tech tracking-wide"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>DOWNLOAD & INSTALL</span>
+                  </button>
                 </div>
               )}
 
@@ -269,21 +381,42 @@ export default function SettingsTab() {
                 <div className="mt-3 flex items-center justify-between p-3 rounded-lg bg-[#0a1813] border border-[#1b4332]">
                   <div className="flex items-center gap-2 text-xs text-[#0df597] font-mono-tech">
                     <CheckCircle2 className="w-4 h-4 text-[#0df597]" />
-                    <span>Update package ready. Restart to complete installation.</span>
+                    <span>Update package ready (100% Downloaded). Restart to complete installation.</span>
                   </div>
                   <button
                     id="btn-install-restart"
                     onClick={handleInstallUpdate}
                     disabled={isInstalling}
-                    className="px-3.5 py-1.5 rounded-lg bg-[#0df597] text-[#06080d] font-bold text-xs hover:bg-[#0be08a] transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(13,245,151,0.35)] cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#0df597] to-[#00e5ff] text-[#06080d] font-bold text-xs hover:brightness-110 transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(13,245,151,0.35)] cursor-pointer font-tech tracking-wide"
                   >
                     <RefreshCw className={`w-3 h-3 ${isInstalling ? 'animate-spin' : ''}`} />
-                    <span>{isInstalling ? 'INSTALLING...' : 'INSTALL & RESTART'}</span>
+                    <span>{isInstalling ? 'INSTALLING...' : 'RESTART & UPDATE NOW'}</span>
                   </button>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Diagnostic Error Log Card if error occurs */}
+          {updateState.status === 'error' && (
+            <div
+              id="updater-error-details"
+              className="p-3.5 rounded-lg bg-[#1a0c10] border border-[#4d1621] space-y-2 text-xs font-mono-tech"
+            >
+              <div className="flex items-center gap-2 text-rose-400 font-bold">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>UPDATER DIAGNOSTIC INFORMATION</span>
+              </div>
+              <p className="text-rose-200/90 font-sans leading-relaxed text-xs">
+                {updateState.error || updateState.message}
+              </p>
+              <div className="pt-2 border-t border-[#3b1219] flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                <span>Repo: <strong className="text-slate-200 font-mono">ahsantalks0-cmyk/Jarvis-</strong></span>
+                <span>Feed: <strong className="text-slate-200 font-mono">GitHub Public Releases</strong></span>
+                <span>Manifest: <strong className="text-slate-200 font-mono">latest.yml</strong></span>
+              </div>
+            </div>
+          )}
 
           {/* Developer Status Simulation Controls (Allows user to preview all states) */}
           <div className="pt-2 border-t border-[#121622] flex flex-wrap items-center gap-2 text-[10px] font-mono-tech">
@@ -301,6 +434,15 @@ export default function SettingsTab() {
                 {st}
               </button>
             ))}
+
+            <button
+              onClick={startLiveDownloadSimulation}
+              className="px-2 py-0.5 rounded border border-[#164d6e] bg-[#0c2436] text-[#00e5ff] hover:bg-[#12364f] flex items-center gap-1 font-bold ml-auto"
+              title="Test live downloading progress animation"
+            >
+              <Play className="w-2.5 h-2.5" />
+              <span>Simulate Live Download (15% → 100%)</span>
+            </button>
           </div>
         </div>
       </div>

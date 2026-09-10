@@ -6,7 +6,7 @@ const defaultLogs: ActivityLogItem[] = [
   {
     id: 'log-1',
     timestamp: '12:00:01.104',
-    event: 'Jarvis Desktop Core initialized with Brain API multi-provider engine (v1.1.0)',
+    event: 'Jarvis Desktop Core initialized with Brain API multi-provider engine (v1.1.1)',
     category: 'SYSTEM',
     status: 'NOMINAL',
     latency: '1.2ms'
@@ -30,7 +30,7 @@ const defaultLogs: ActivityLogItem[] = [
   {
     id: 'log-4',
     timestamp: '12:00:02.040',
-    event: 'Auto-updater configured for GitHub releases (ahsantalks0-cmyk/jarvis v1.1.0)',
+    event: 'Auto-updater configured for GitHub releases (ahsantalks0-cmyk/Jarvis- v1.1.1)',
     category: 'UPDATER',
     status: 'SUCCESS',
     latency: '24ms'

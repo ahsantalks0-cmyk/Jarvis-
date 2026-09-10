@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { TabType, AgentItem } from './types';
+import { TabType, AgentItem, UpdateState } from './types';
 import Header from './components/Header';
 import TopNav from './components/TopNav';
+import TopUpdateAlertBar from './components/TopUpdateAlertBar';
+import UpdateNotificationBanner from './components/UpdateNotificationBanner';
 import ChatTab from './components/tabs/ChatTab';
 import AgentsTab from './components/tabs/AgentsTab';
 import ThirdPartyAppsTab from './components/tabs/ThirdPartyAppsTab';
@@ -18,6 +20,9 @@ import { electronBridge } from './lib/electronBridge';
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [agents, setAgents] = useState<AgentItem[]>([]);
+  const [toastUpdate, setToastUpdate] = useState<UpdateState | null>(null);
+  const [isToastDismissed, setIsToastDismissed] = useState<boolean>(false);
+  const [isTopBannerDismissed, setIsTopBannerDismissed] = useState<boolean>(false);
 
   useEffect(() => {
     // Load agent registry items from Electron IPC / local foundation registry
@@ -26,6 +31,22 @@ export default function App() {
       setAgents(list);
     };
     loadAgents();
+
+    // Listen to auto-updater status to trigger top banner & notifications
+    const unsubscribeUpdater = electronBridge.onUpdateStatus((state) => {
+      if (state.status === 'available' || state.status === 'downloaded') {
+        setToastUpdate(state);
+        setIsToastDismissed(false);
+        setIsTopBannerDismissed(false);
+      } else if (state.status === 'downloading') {
+        setToastUpdate((prev) => (prev ? { ...prev, ...state } : state));
+        setIsTopBannerDismissed(false);
+      }
+    });
+
+    return () => {
+      unsubscribeUpdater();
+    };
   }, []);
 
   const handleToggleAgent = async (id: string) => {
@@ -76,6 +97,29 @@ export default function App() {
     >
       {/* Desktop Window Title Bar & Header */}
       <Header />
+
+      {/* Top Banner Alert Bar: Shows automatically at the top when update is available, downloading, or ready to install */}
+      {!isTopBannerDismissed && toastUpdate && (
+        <TopUpdateAlertBar
+          updateState={toastUpdate}
+          onDismiss={() => setIsTopBannerDismissed(true)}
+          onOpenSettings={() => {
+            setActiveTab('settings');
+          }}
+        />
+      )}
+
+      {/* Auto-Update Toast / Banner Notification */}
+      {!isToastDismissed && toastUpdate && (
+        <UpdateNotificationBanner
+          updateState={toastUpdate}
+          onDismiss={() => setIsToastDismissed(true)}
+          onOpenSettings={() => {
+            setActiveTab('settings');
+            setIsToastDismissed(true);
+          }}
+        />
+      )}
 
       {/* Horizontal Top Navigation Bar */}
       <TopNav

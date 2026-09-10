@@ -9,14 +9,15 @@ import {
   Download,
   CheckCircle2,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  ArrowUp
 } from 'lucide-react';
 import { electronBridge } from '../lib/electronBridge';
 import { UpdateState } from '../types';
 
 export default function Header() {
   const [time, setTime] = useState<string>('');
-  const [appVersion, setAppVersion] = useState<string>('1.1.0');
+  const [appVersion, setAppVersion] = useState<string>('1.1.1');
   const [updateState, setUpdateState] = useState<UpdateState | null>(null);
   const [showUpToDateBriefly, setShowUpToDateBriefly] = useState<boolean>(false);
   const [isInstalling, setIsInstalling] = useState<boolean>(false);
@@ -113,22 +114,31 @@ export default function Header() {
 
       {/* Right Controls, Telemetry & Auto-Update Indicator */}
       <div className="flex items-center gap-3">
-        {/* Dynamic Auto-Update Status Area (Stays hidden when nothing to report) */}
-        {/* State 1: Update Available / Downloading with thin animated progress */}
-        {(updateState?.status === 'available' || updateState?.status === 'downloading') && (
+        {/* Permanent Update Status Indicator adjacent to Version Badge */}
+        {updateState?.status === 'available' && (
           <div
-            id="header-update-downloading-indicator"
-            className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#07131e] border border-[#13324d] text-cyan-300 text-[10px] shadow-[0_0_12px_rgba(0,229,255,0.18)] animate-pulse"
+            id="header-update-badge-available"
+            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#081827] border border-[#14476f] text-[#38bdf8] text-[10px] font-semibold tracking-wide animate-pulse shadow-[0_0_12px_rgba(56,189,248,0.35)] cursor-default select-none"
+            title={`Update v${updateState.version || '1.1.2'} available on GitHub releases`}
           >
-            <Download className="w-3 h-3 text-[#00e5ff] animate-bounce" />
-            <span>
-              Update v{updateState.version || '1.0.3'} available — downloading
-              {updateState.percent !== undefined ? ` (${updateState.percent}%)` : ''}...
+            <ArrowUp className="w-3 h-3 text-[#38bdf8]" />
+            <span>⬆ Update v{updateState.version || '1.1.2'} Available</span>
+          </div>
+        )}
+
+        {updateState?.status === 'downloading' && (
+          <div
+            id="header-update-badge-downloading"
+            className="flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-[#071724] border border-[#123e61] text-cyan-300 text-[10px] shadow-[0_0_12px_rgba(0,229,255,0.22)]"
+          >
+            <Download className="w-3 h-3 text-cyan-400 animate-bounce" />
+            <span className="font-mono-tech">
+              {updateState.percent ?? 0}% Done • {updateState.remainingPercent ?? Math.max(0, 100 - (updateState.percent ?? 0))}% Left
             </span>
             {updateState.percent !== undefined && (
-              <div className="w-12 bg-[#102035] h-1.5 rounded-full overflow-hidden ml-0.5">
+              <div className="w-12 bg-[#0c1f33] h-1.5 rounded-full overflow-hidden ml-0.5">
                 <div
-                  className="bg-[#0df597] h-full transition-all duration-300 shadow-[0_0_8px_#0df597]"
+                  className="bg-gradient-to-r from-[#00e5ff] to-[#0df597] h-full transition-all duration-300 shadow-[0_0_8px_#0df597]"
                   style={{ width: `${updateState.percent}%` }}
                 />
               </div>
@@ -136,36 +146,27 @@ export default function Header() {
           </div>
         )}
 
-        {/* State 2: Update Downloaded -> Premium card with "Install & Restart" button */}
         {updateState?.status === 'downloaded' && (
-          <div
-            id="header-update-downloaded-card"
-            className="flex items-center gap-2 px-2.5 py-0.5 rounded-lg bg-[#0a1813] border border-[#1b4332] text-[#0df597] text-[10px] shadow-[0_0_15px_rgba(13,245,151,0.25)]"
+          <button
+            id="header-btn-restart-update"
+            onClick={handleInstall}
+            disabled={isInstalling}
+            title="Click to restart Jarvis and complete update"
+            className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#0a1e16] border border-[#1b5037] text-[#0df597] hover:bg-[#0e2a1f] hover:border-[#246b4a] text-[10px] font-bold tracking-wide transition-all shadow-[0_0_14px_rgba(13,245,151,0.3)] cursor-pointer group"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#0df597]" />
-            <span className="font-semibold text-slate-100">
-              Update v{updateState.version || '1.0.3'} Ready
-            </span>
-            <button
-              id="header-btn-install-restart"
-              onClick={handleInstall}
-              disabled={isInstalling}
-              className="px-2 py-0.5 rounded bg-[#0df597] text-[#06080d] hover:bg-[#0be08a] font-bold text-[9px] tracking-wider transition-all shadow-[0_0_8px_rgba(13,245,151,0.4)] flex items-center gap-1 cursor-pointer"
-            >
-              <RefreshCw className={`w-2.5 h-2.5 ${isInstalling ? 'animate-spin' : ''}`} />
-              <span>{isInstalling ? 'INSTALLING...' : 'INSTALL & RESTART'}</span>
-            </button>
-          </div>
+            <Sparkles className="w-3 h-3 text-[#0df597] group-hover:rotate-12 transition-transform" />
+            <span>✦ Restart to Update</span>
+            {isInstalling && <RefreshCw className="w-2.5 h-2.5 animate-spin ml-0.5" />}
+          </button>
         )}
 
-        {/* State 3: Up to date brief toast (fades out automatically) */}
         {showUpToDateBriefly && (
           <div
             id="header-up-to-date-toast"
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#091512] border border-[#133024] text-[#0df597] text-[10px] animate-fade-in"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#091512] border border-[#133024] text-[#0df597] text-[10px] animate-fade-in"
           >
             <CheckCircle2 className="w-3 h-3 text-[#0df597]" />
-            <span>Jarvis is up to date</span>
+            <span>Up to date</span>
           </div>
         )}
 

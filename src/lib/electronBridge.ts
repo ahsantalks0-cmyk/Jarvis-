@@ -56,9 +56,21 @@ const defaultAgents: AgentItem[] = [
 
 let localAgents = [...defaultAgents];
 
+const updateListeners = new Set<(state: UpdateState) => void>();
+
 export const electronBridge = {
   isElectron(): boolean {
     return typeof window !== 'undefined' && Boolean(window.electronAPI?.isElectron);
+  },
+
+  dispatchUpdate(state: UpdateState) {
+    updateListeners.forEach((listener) => {
+      try {
+        listener(state);
+      } catch (err) {
+        console.error('Error in updateListener:', err);
+      }
+    });
   },
 
   async getVersion(): Promise<string> {
@@ -66,10 +78,10 @@ export const electronBridge = {
       try {
         return await window.electronAPI.getVersion();
       } catch {
-        return '1.0.0';
+        return '1.1.1';
       }
     }
-    return '1.0.0';
+    return '1.1.1';
   },
 
   async getAgents(): Promise<AgentItem[]> {
@@ -104,27 +116,79 @@ export const electronBridge = {
         const res = await window.electronAPI.checkForUpdates();
         return {
           status: res?.status || 'up-to-date',
-          version: res?.version || '1.1.0',
-          message: res?.message || 'Jarvis v1.1.0 is currently the latest release.',
+          version: res?.version || (await this.getVersion()),
+          message: res?.message || `Jarvis is up to date (v${res?.version || '1.1.1'})`,
           percent: res?.percent,
-          lastChecked: new Date().toLocaleTimeString()
+          lastChecked: res?.lastChecked || new Date().toLocaleTimeString(),
+          error: res?.error,
+          releaseNotes: res?.releaseNotes
         };
       } catch (err: any) {
+        const curVersion = await this.getVersion();
         return {
           status: 'error',
-          message: err?.message || 'Could not verify release manifest.',
+          version: curVersion,
+          message: `Update check failed: ${err?.message || 'Could not contact updater process'}`,
+          error: err?.message || String(err),
           lastChecked: new Date().toLocaleTimeString()
         };
       }
     }
 
-    // Web simulation
-    return {
-      status: 'up-to-date',
-      version: '1.1.0',
-      message: 'Jarvis is up to date (v1.1.0).',
-      lastChecked: new Date().toLocaleTimeString()
-    };
+    // Web / Preview Environment: Live check against GitHub Releases API
+    try {
+      const curVersion = await this.getVersion();
+      const res = await fetch('https://api.github.com/repos/ahsantalks0-cmyk/Jarvis-/releases/latest', {
+        headers: { Accept: 'application/vnd.github.v3+json' }
+      });
+      if (!res.ok) {
+        throw new Error(`GitHub releases API: HTTP ${res.status} (${res.statusText})`);
+      }
+      const data = await res.json();
+      const latestTag = (data.tag_name || '').replace(/^v/, '');
+
+      const parseSemver = (v: string) => (v || '').replace(/[^0-9.]/g, '').split('.').map(Number);
+      const v1 = parseSemver(latestTag);
+      const v2 = parseSemver(curVersion);
+      let isNewer = false;
+      for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+        const n1 = v1[i] || 0;
+        const n2 = v2[i] || 0;
+        if (n1 > n2) {
+          isNewer = true;
+          break;
+        }
+        if (n1 < n2) {
+          break;
+        }
+      }
+
+      if (isNewer && latestTag) {
+        return {
+          status: 'available',
+          version: latestTag,
+          message: `Update v${latestTag} available — downloading...`,
+          lastChecked: new Date().toLocaleTimeString(),
+          releaseNotes: data.body
+        };
+      }
+
+      return {
+        status: 'up-to-date',
+        version: curVersion,
+        message: `Jarvis is up to date (v${curVersion})`,
+        lastChecked: new Date().toLocaleTimeString()
+      };
+    } catch (err: any) {
+      const curVersion = await this.getVersion();
+      return {
+        status: 'error',
+        version: curVersion,
+        message: `Update check failed: ${err?.message || 'Could not reach GitHub release API'}`,
+        error: err?.message || String(err),
+        lastChecked: new Date().toLocaleTimeString()
+      };
+    }
   },
 
   async installUpdate(): Promise<void> {
@@ -136,18 +200,39 @@ export const electronBridge = {
   },
 
   onUpdateStatus(callback: (state: UpdateState) => void): () => void {
+    updateListeners.add(callback);
+
+    let ipcUnsubscribe: (() => void) | null = null;
     if (window.electronAPI?.onUpdateStatus) {
-      return window.electronAPI.onUpdateStatus((data: any) => {
+      ipcUnsubscribe = window.electronAPI.onUpdateStatus((data: any) => {
+        const percent = data.percent !== undefined ? Number(data.percent) : undefined;
+        const remainingPercent =
+          data.remainingPercent !== undefined
+            ? Number(data.remainingPercent)
+            : percent !== undefined
+            ? Math.max(0, 100 - percent)
+            : undefined;
+
         callback({
           status: data.status,
-          version: data.version || '1.1.0',
+          version: data.version || '1.1.1',
           message: data.message || '',
-          percent: data.percent,
-          lastChecked: new Date().toLocaleTimeString()
+          percent,
+          remainingPercent,
+          transferred: data.transferred,
+          total: data.total,
+          bytesPerSecond: data.bytesPerSecond,
+          lastChecked: data.lastChecked || new Date().toLocaleTimeString(),
+          error: data.error,
+          releaseNotes: data.releaseNotes
         });
       });
     }
-    return () => {};
+
+    return () => {
+      updateListeners.delete(callback);
+      if (ipcUnsubscribe) ipcUnsubscribe();
+    };
   },
 
   windowControl(action: 'minimize' | 'maximize' | 'close') {
