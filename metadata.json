@@ -1,0 +1,6 @@
+{
+  "name": "Jarvis",
+  "description": "A luxury dark personal AI assistant desktop application with agent registry, auto-updater integration, and complete UI skeleton.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
