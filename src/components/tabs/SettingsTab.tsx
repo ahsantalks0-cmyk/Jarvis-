@@ -20,8 +20,8 @@ import { electronBridge } from '../../lib/electronBridge';
 export default function SettingsTab() {
   const [updateState, setUpdateState] = useState<UpdateState>({
     status: 'idle',
-    version: '1.0.0',
-    message: 'Version 1.0.0 installed. Up-to-date with GitHub release channel.',
+    version: '1.0.1',
+    message: 'Version 1.0.1 installed. Up-to-date with GitHub release channel.',
     lastChecked: 'Just now'
   });
   const [isChecking, setIsChecking] = useState(false);
@@ -33,6 +33,17 @@ export default function SettingsTab() {
   const [framelessMode, setFramelessMode] = useState(false);
 
   useEffect(() => {
+    // Check real app version from Electron
+    electronBridge.getVersion().then((v) => {
+      if (v) {
+        setUpdateState((prev) => ({
+          ...prev,
+          version: v,
+          message: `Version ${v} installed. Up-to-date with GitHub release channel.`
+        }));
+      }
+    });
+
     // Subscribe to IPC update status events if in Electron
     const unsubscribe = electronBridge.onUpdateStatus((state) => {
       setUpdateState(state);
@@ -45,8 +56,8 @@ export default function SettingsTab() {
     setIsChecking(true);
     setUpdateState({
       status: 'checking',
-      version: '1.0.0',
-      message: 'Connecting to GitHub repository releases (ahsantalks0-cmyk/jarvis)...',
+      version: '1.0.1',
+      message: 'Connecting to GitHub repository releases (ahsantalks0-cmyk/Jarvis-)...',
       lastChecked: new Date().toLocaleTimeString()
     });
 

@@ -63,7 +63,7 @@ export default function Header() {
       <div className="flex items-center gap-3.5">
         <div className="flex items-center gap-2 text-[10px] text-slate-400">
           <span className="px-1.5 py-0.5 rounded bg-[#0e131d] border border-[#1c2436] text-slate-300 font-medium">
-            v1.0.0
+            v1.0.1
           </span>
           <div className="flex items-center gap-1 text-[#0df597]">
             <ShieldCheck className="w-3 h-3" />

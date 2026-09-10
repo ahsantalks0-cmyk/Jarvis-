@@ -105,14 +105,26 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // F12 keyboard shortcut to toggle DevTools open/close for debugging
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12' && input.type === 'keyDown') {
+      mainWindow.webContents.toggleDevTools();
+      event.preventDefault();
+    }
+  });
+
+  // Add load failure logging
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.log('LOAD FAILED:', errorCode, errorDescription);
+  });
+
   // Determine target URL: Check if Vite dev server is running on localhost:3000
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    // In production or default build, load the built static HTML or dev fallback
+    // In production or packaged app, load the built HTML file matching project structure
     mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(() => {
-      // Fallback if running before build
       mainWindow.loadFile(path.join(__dirname, 'index.html'));
     });
   }
