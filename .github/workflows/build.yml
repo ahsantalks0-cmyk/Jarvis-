@@ -1,0 +1,49 @@
+name: Build Jarvis
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create version tag
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -f "v$v"
+          git push -f origin "v$v"
+
+      - name: Build and publish release
+        run: npm run dist -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish draft release
+        run: |
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $headers = @{ Authorization = "Bearer ${{ secrets.GITHUB_TOKEN }}"; Accept = "application/vnd.github+json" }
+          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
+          $draft = $releases | Where-Object { $_.tag_name -eq "v$v" -and $_.draft -eq $true }
+          if ($draft) {
+            Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/${{ github.repository }}/releases/$($draft.id)" -Headers $headers -Body '{"draft":false}'
+            Write-Host "Release v$v published!"
+          } else {
+            Write-Host "No draft found for v$v (maybe already published)"
+          }
