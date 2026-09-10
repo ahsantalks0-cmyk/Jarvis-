@@ -3,6 +3,7 @@
   "productName": "Jarvis",
   "version": "1.0.0",
   "description": "Personal AI Assistant - Luxury Desktop Interface",
+  "author": "Ahsan",
   "main": "main.js",
   "type": "module",
   "scripts": {
@@ -20,7 +21,7 @@
     "publish": {
       "provider": "github",
       "owner": "ahsantalks0-cmyk",
-      "repo": "jarvis",
+      "repo": "Jarvis-",
       "releaseType": "draft"
     },
     "win": {
