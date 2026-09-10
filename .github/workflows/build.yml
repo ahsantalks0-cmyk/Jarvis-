@@ -22,28 +22,24 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create version tag
+      - name: Build app files
+        run: npm run dist
+
+      - name: Get version from package.json
+        id: version
         run: |
           $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag -f "v$v"
-          git push -f origin "v$v"
+          echo "tag=v$v" >> $env:GITHUB_OUTPUT
 
-      - name: Build and publish release
-        run: npm run dist -- --publish always
+      - name: Create release and upload all files
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          draft: false
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish draft release
-        run: |
-          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $headers = @{ Authorization = "Bearer ${{ secrets.GITHUB_TOKEN }}"; Accept = "application/vnd.github+json" }
-          $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases" -Headers $headers
-          $draft = $releases | Where-Object { $_.tag_name -eq "v$v" -and $_.draft -eq $true }
-          if ($draft) {
-            Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/${{ github.repository }}/releases/$($draft.id)" -Headers $headers -Body '{"draft":false}'
-            Write-Host "Release v$v published!"
-          } else {
-            Write-Host "No draft found for v$v (maybe already published)"
-          }
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
