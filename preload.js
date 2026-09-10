@@ -34,5 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   windowControl: (action) => ipcRenderer.send('window:control', action),
   
   // External link opener
-  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('shell:open-external', url),
+
+  // Brain API Key SafeStorage Encryption
+  isSafeStorageAvailable: () => ipcRenderer.invoke('safe-storage:is-available'),
+  safeStorageEncrypt: (plainText) => ipcRenderer.invoke('safe-storage:encrypt', plainText),
+  safeStorageDecrypt: (cipherText) => ipcRenderer.invoke('safe-storage:decrypt', cipherText)
 });

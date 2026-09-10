@@ -3,7 +3,7 @@
  * Phase 1: Foundation & UI Skeleton
  */
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, safeStorage } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import electronUpdater from 'electron-updater';
@@ -235,6 +235,36 @@ ipcMain.on('window:control', (_event, action) => {
 
 ipcMain.handle('shell:open-external', (_event, url) => {
   return shell.openExternal(url);
+});
+
+// SafeStorage encryption for Brain API keys
+ipcMain.handle('safe-storage:is-available', () => {
+  return safeStorage && safeStorage.isEncryptionAvailable ? safeStorage.isEncryptionAvailable() : false;
+});
+
+ipcMain.handle('safe-storage:encrypt', (_event, plainText) => {
+  try {
+    if (safeStorage && safeStorage.isEncryptionAvailable()) {
+      const buffer = safeStorage.encryptString(plainText);
+      return { success: true, cipherText: buffer.toString('base64') };
+    }
+    return { success: false, error: 'SafeStorage encryption unavailable' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('safe-storage:decrypt', (_event, cipherText) => {
+  try {
+    if (safeStorage && safeStorage.isEncryptionAvailable()) {
+      const buffer = Buffer.from(cipherText, 'base64');
+      const plainText = safeStorage.decryptString(buffer);
+      return { success: true, plainText };
+    }
+    return { success: false, error: 'SafeStorage encryption unavailable' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // App Lifecycle

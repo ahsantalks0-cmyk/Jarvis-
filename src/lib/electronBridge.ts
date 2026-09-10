@@ -13,6 +13,9 @@ declare global {
       toggleAgent: (id: string) => Promise<AgentItem | null>;
       windowControl: (action: 'minimize' | 'maximize' | 'close') => void;
       openExternal: (url: string) => Promise<void>;
+      isSafeStorageAvailable?: () => Promise<boolean>;
+      safeStorageEncrypt?: (plainText: string) => Promise<{ success: boolean; cipherText?: string; error?: string }>;
+      safeStorageDecrypt?: (cipherText: string) => Promise<{ success: boolean; plainText?: string; error?: string }>;
     };
   }
 }
@@ -101,8 +104,8 @@ export const electronBridge = {
         const res = await window.electronAPI.checkForUpdates();
         return {
           status: res?.status || 'up-to-date',
-          version: res?.version || '1.0.4',
-          message: res?.message || 'Jarvis v1.0.4 is currently the latest release.',
+          version: res?.version || '1.1.0',
+          message: res?.message || 'Jarvis v1.1.0 is currently the latest release.',
           percent: res?.percent,
           lastChecked: new Date().toLocaleTimeString()
         };
@@ -118,8 +121,8 @@ export const electronBridge = {
     // Web simulation
     return {
       status: 'up-to-date',
-      version: '1.0.4',
-      message: 'Jarvis is up to date (v1.0.4).',
+      version: '1.1.0',
+      message: 'Jarvis is up to date (v1.1.0).',
       lastChecked: new Date().toLocaleTimeString()
     };
   },
@@ -137,7 +140,7 @@ export const electronBridge = {
       return window.electronAPI.onUpdateStatus((data: any) => {
         callback({
           status: data.status,
-          version: data.version || '1.0.4',
+          version: data.version || '1.1.0',
           message: data.message || '',
           percent: data.percent,
           lastChecked: new Date().toLocaleTimeString()

@@ -1,46 +1,20 @@
-import { useState } from 'react';
-import { Activity, Terminal, Shield, RefreshCw, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, Terminal, Shield, RefreshCw, Filter, Trash2 } from 'lucide-react';
 import { ActivityLogItem } from '../../types';
-
-const sampleLogs: ActivityLogItem[] = [
-  {
-    id: 'log-1',
-    timestamp: '12:00:01.104',
-    event: 'Jarvis Electron Main Process initialized on port 3000 (Host: 0.0.0.0)',
-    category: 'SYSTEM',
-    status: 'NOMINAL',
-    latency: '1.2ms'
-  },
-  {
-    id: 'log-2',
-    timestamp: '12:00:01.320',
-    event: 'Preload contextBridge exposed secure electronAPI endpoints',
-    category: 'SECURITY',
-    status: 'SUCCESS',
-    latency: '0.4ms'
-  },
-  {
-    id: 'log-3',
-    timestamp: '12:00:01.512',
-    event: 'Central Agent Registry mounted 3 baseline dormant agents',
-    category: 'AGENT',
-    status: 'NOMINAL',
-    latency: '0.8ms'
-  },
-  {
-    id: 'log-4',
-    timestamp: '12:00:02.040',
-    event: 'Auto-updater configured for GitHub releases (ahsantalks0-cmyk/jarvis)',
-    category: 'UPDATER',
-    status: 'SUCCESS',
-    latency: '24ms'
-  }
-];
+import { activityLogService } from '../../lib/activityLogService';
 
 export default function ActivityLogTab() {
+  const [logs, setLogs] = useState<ActivityLogItem[]>([]);
   const [filter, setFilter] = useState<string>('ALL');
 
-  const filteredLogs = sampleLogs.filter(
+  useEffect(() => {
+    const unsubscribe = activityLogService.subscribe((updated) => {
+      setLogs(updated);
+    });
+    return unsubscribe;
+  }, []);
+
+  const filteredLogs = logs.filter(
     (l) => filter === 'ALL' || l.category === filter
   );
 
@@ -55,7 +29,7 @@ export default function ActivityLogTab() {
               System Audit Trail & Event Telemetry
             </h1>
             <span className="px-2 py-0.5 rounded text-[10px] font-mono-tech bg-[#0e1624] text-[#0df597] border border-[#1b283d]">
-              {sampleLogs.length} EVENTS LOGGED
+              {logs.length} EVENTS LOGGED
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 font-sans">
@@ -63,20 +37,30 @@ export default function ActivityLogTab() {
           </p>
         </div>
 
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-[#090c14] border border-[#161c2a] text-xs font-mono-tech">
-          {['ALL', 'SYSTEM', 'SECURITY', 'UPDATER', 'AGENT'].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setFilter(cat)}
-              className={`px-2.5 py-1 rounded-lg text-xs transition-all ${
-                filter === cat
-                  ? 'bg-[#141926] text-[#0df597] border border-[#232d42]'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-[#090c14] border border-[#161c2a] text-xs font-mono-tech overflow-x-auto">
+            {['ALL', 'SYSTEM', 'BRAIN_API', 'FAILOVER', 'SECURITY', 'AGENT'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilter(cat)}
+                className={`px-2.5 py-1 rounded-lg text-xs transition-all whitespace-nowrap ${
+                  filter === cat
+                    ? 'bg-[#141926] text-[#0df597] border border-[#232d42]'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => activityLogService.clearLogs()}
+            title="Clear Activity Logs"
+            className="p-2 rounded-xl bg-[#090c14] border border-[#161c2a] text-slate-500 hover:text-red-400 hover:border-red-900/40 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 

@@ -16,7 +16,7 @@ import { UpdateState } from '../types';
 
 export default function Header() {
   const [time, setTime] = useState<string>('');
-  const [appVersion, setAppVersion] = useState<string>('1.0.4');
+  const [appVersion, setAppVersion] = useState<string>('1.1.0');
   const [updateState, setUpdateState] = useState<UpdateState | null>(null);
   const [showUpToDateBriefly, setShowUpToDateBriefly] = useState<boolean>(false);
   const [isInstalling, setIsInstalling] = useState<boolean>(false);

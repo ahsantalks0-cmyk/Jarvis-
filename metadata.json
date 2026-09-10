@@ -1,6 +1,6 @@
 {
   "name": "Jarvis",
-  "description": "A luxury dark personal AI assistant desktop application with agent registry, auto-updater integration, and complete UI skeleton.",
+  "description": "A luxury dark personal AI assistant desktop application featuring the Brain API multi-provider intelligence layer with automatic failover, priority-based routing, usage tracking, and agent registry.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

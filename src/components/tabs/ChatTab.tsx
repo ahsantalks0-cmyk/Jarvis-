@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useRef, useEffect, FormEvent } from 'react';
 import {
   Mic,
   Send,
@@ -12,24 +12,34 @@ import {
   Sparkles,
   Bot,
   BrainCircuit,
-  Waves
+  Waves,
+  ArrowRightLeft,
+  Zap,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import NeuralOrb from '../NeuralOrb';
-import { JarvisMode } from '../../types';
+import { JarvisMode, FailoverEvent } from '../../types';
+import { brainApiService } from '../../lib/brainApi/brainApiService';
 
 interface Message {
   id: string;
   sender: 'jarvis' | 'user';
   text: string;
   time: string;
+  providerBadge?: string;
+  latencyMs?: number;
+  tokens?: { input: number; output: number };
+  isStreaming?: boolean;
 }
 
 const initialMessages: Message[] = [
   {
     id: 'msg-1',
     sender: 'jarvis',
-    text: 'Jarvis Neural Interface initialized. Standing by for voice or text instructions.',
-    time: '12:01:10 PM'
+    text: 'Jarvis Neural Interface initialized with Brain API multi-provider routing (v1.1.0). Standing by for voice or text instructions.',
+    time: '12:01:10 PM',
+    providerBadge: 'Brain API Engine'
   },
   {
     id: 'msg-2',
@@ -40,8 +50,11 @@ const initialMessages: Message[] = [
   {
     id: 'msg-3',
     sender: 'jarvis',
-    text: 'All neural matrices nominal. Agent Registry mounted with 3 dormant modules. Auto-updater linked to GitHub repository release pipeline.',
-    time: '12:01:22 PM'
+    text: 'All neural matrices nominal. Brain API provider router online with automatic failover, priority scheduling, and SafeStorage encryption. Auto-updater linked to v1.1.0 release channel.',
+    time: '12:01:22 PM',
+    providerBadge: 'System Core',
+    latencyMs: 14,
+    tokens: { input: 12, output: 42 }
   }
 ];
 
@@ -51,41 +64,142 @@ export default function ChatTab() {
   const [micActive, setMicActive] = useState(false);
   const [callActive, setCallActive] = useState(false);
   const [activeMode, setActiveMode] = useState<JarvisMode>('idle');
+  const [failoverAlert, setFailoverAlert] = useState<FailoverEvent | null>(null);
+  const [statusHint, setStatusHint] = useState<string>('Standing by for command');
+  const [activeProviderName, setActiveProviderName] = useState<string>('Gemini');
+  const historyBottomRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = (e?: FormEvent) => {
+  useEffect(() => {
+    const updateActive = () => {
+      const active = brainApiService.getActiveProvider();
+      if (active) {
+        setActiveProviderName(`${active.name} (${active.selectedModel})`);
+      }
+    };
+    updateActive();
+    return brainApiService.subscribe(updateActive);
+  }, []);
+
+  useEffect(() => {
+    historyBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSend = async (e?: FormEvent) => {
     if (e) e.preventDefault();
     if (!inputVal.trim()) return;
 
-    const newMsg: Message = {
+    const userText = inputVal.trim();
+    const userMsg: Message = {
       id: `msg-${Date.now()}`,
       sender: 'user',
-      text: inputVal.trim(),
+      text: userText,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     };
 
-    setMessages((prev) => [...prev, newMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setInputVal('');
 
-    // Switch mode to thinking then speaking on reply
+    // Set mode to thinking while preparing request
     setActiveMode('thinking');
+    setStatusHint('Engaging cognitive router...');
 
-    setTimeout(() => {
-      setActiveMode('speaking');
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `msg-resp-${Date.now()}`,
-          sender: 'jarvis',
-          text: 'Instruction logged to Activity Stream. [Phase 1 Foundation: AI execution pipeline will activate in Phase 2 with Brain API connection.]',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    const jarvisMsgId = `msg-resp-${Date.now()}`;
+    const placeholderMsg: Message = {
+      id: jarvisMsgId,
+      sender: 'jarvis',
+      text: '',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      isStreaming: true
+    };
+
+    setMessages((prev) => [...prev, placeholderMsg]);
+
+    // Prepare conversation history
+    const conversationHistory = [...messages, userMsg].map((m) => ({
+      role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+      content: m.text
+    }));
+
+    try {
+      let accumulatedText = '';
+
+      const result = await brainApiService.executeChatPrompt(conversationHistory, {
+        onChunk: (chunk: string) => {
+          accumulatedText = chunk;
+          setActiveMode('speaking');
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === jarvisMsgId
+                ? {
+                    ...msg,
+                    text: accumulatedText,
+                    isStreaming: true
+                  }
+                : msg
+            )
+          );
+        },
+        onProviderSwitch: (event: FailoverEvent) => {
+          setFailoverAlert(event);
+          setStatusHint(`Failover: ${event.fromProviderName} → ${event.toProviderName}`);
+          setTimeout(() => setFailoverAlert(null), 5000);
+        },
+        onStatusChange: (status: string) => {
+          setStatusHint(status);
         }
-      ]);
+      });
 
-      // Return to idle after speech finishes
-      setTimeout(() => {
-        setActiveMode('idle');
-      }, 2500);
-    }, 1200);
+      // Update completed message
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === jarvisMsgId
+            ? {
+                ...msg,
+                text: result.text,
+                providerBadge: `via ${result.providerName} (${result.model})`,
+                latencyMs: result.latencyMs,
+                tokens: result.tokens,
+                isStreaming: false
+              }
+            : msg
+        )
+      );
+
+      // Voice speech synthesis if call is active
+      if (callActive && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(result.text.replace(/\[.*?\]/g, ''));
+        utterance.rate = 1.05;
+        utterance.pitch = 0.95;
+        utterance.onend = () => {
+          setActiveMode('idle');
+          setStatusHint('Standing by for command');
+        };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        // Return to idle after speech animation pause
+        setTimeout(() => {
+          setActiveMode('idle');
+          setStatusHint('Standing by for command');
+        }, 2200);
+      }
+    } catch (err: any) {
+      console.error('Inference pipeline error:', err);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === jarvisMsgId
+            ? {
+                ...msg,
+                text: `[Cognitive Pipeline Error]: ${err?.message || 'Connection failure'}`,
+                providerBadge: 'Pipeline Fault',
+                isStreaming: false
+              }
+            : msg
+        )
+      );
+      setActiveMode('idle');
+      setStatusHint('Standing by for command');
+    }
   };
 
   const modeButtons: Array<{ id: JarvisMode; label: string; icon: typeof Sparkles }> = [
@@ -344,10 +458,20 @@ export default function ChatTab() {
               TRANSCRIPT
             </span>
           </div>
-          <span className="text-[9px] font-mono-tech px-2 py-0.5 rounded bg-[#091512] border border-[#133024] text-[#0df597] font-semibold">
-            LIVE FEED
+          <span className="text-[9px] font-mono-tech px-2 py-0.5 rounded bg-[#091512] border border-[#133024] text-[#0df597] font-semibold truncate max-w-[130px]" title={activeProviderName}>
+            {activeProviderName}
           </span>
         </div>
+
+        {/* Seamless Failover Alert Notification */}
+        {failoverAlert && (
+          <div className="m-2 p-2 rounded-xl bg-amber-950/60 border border-amber-600/50 text-amber-200 text-[10px] font-mono-tech flex items-center gap-2 animate-fadeIn shrink-0">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <div className="truncate">
+              <span className="font-bold text-amber-300">AUTO-FAILOVER:</span> Switched to {failoverAlert.toProviderName} ({failoverAlert.reason})
+            </div>
+          </div>
+        )}
 
         {/* Scrollable Message History Area */}
         <div
@@ -361,7 +485,7 @@ export default function ChatTab() {
                 msg.sender === 'user' ? 'items-end' : 'items-start'
               }`}
             >
-              <div className="flex items-center gap-1.5 text-[9px] font-mono-tech text-slate-500 mb-1 px-1">
+              <div className="flex items-center gap-1.5 text-[9px] font-mono-tech text-slate-500 mb-1 px-1 flex-wrap">
                 {msg.sender === 'jarvis' && (
                   <Bot className="w-3 h-3 text-[#0df597]" />
                 )}
@@ -370,18 +494,37 @@ export default function ChatTab() {
                 </span>
                 <span>•</span>
                 <span>{msg.time}</span>
+                {msg.providerBadge && (
+                  <span className="px-1.5 py-0.2 rounded bg-[#0e1625] text-cyan-300 border border-[#1a2942] text-[8px]">
+                    {msg.providerBadge}
+                  </span>
+                )}
+                {msg.latencyMs !== undefined && (
+                  <span className="text-slate-500 text-[8px]">
+                    {msg.latencyMs}ms
+                  </span>
+                )}
+                {msg.tokens && (
+                  <span className="text-slate-500 text-[8px]">
+                    {msg.tokens.input + msg.tokens.output} tok
+                  </span>
+                )}
               </div>
               <div
-                className={`max-w-[90%] p-3 rounded-xl leading-relaxed text-xs ${
+                className={`max-w-[90%] p-3 rounded-xl leading-relaxed text-xs relative ${
                   msg.sender === 'user'
                     ? 'bg-[#101624] border border-[#1e2a42] text-slate-100 rounded-br-sm shadow-md'
                     : 'bg-[#0a0d16] border border-[#151d2d] text-slate-200 rounded-bl-sm shadow-sm'
                 }`}
               >
-                {msg.text}
+                {msg.text || (msg.isStreaming ? 'Thinking...' : '')}
+                {msg.isStreaming && (
+                  <span className="inline-block w-1.5 h-3.5 ml-1 bg-[#0df597] animate-pulse align-middle" />
+                )}
               </div>
             </div>
           ))}
+          <div ref={historyBottomRef} />
         </div>
 
         {/* Chat Input Field at the BOTTOM of this Right Sidebar */}
@@ -432,8 +575,8 @@ export default function ChatTab() {
           </form>
 
           <div className="mt-1.5 flex items-center justify-between text-[9px] font-mono-tech text-slate-500 px-1">
-            <span>Press Enter to dispatch</span>
-            <span className="text-slate-600">v1.0.4</span>
+            <span>{statusHint}</span>
+            <span className="text-slate-600 font-bold">v1.1.0</span>
           </div>
         </div>
       </aside>

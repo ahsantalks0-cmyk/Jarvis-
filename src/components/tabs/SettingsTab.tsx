@@ -14,11 +14,11 @@ import { UpdateState, UpdateStatus } from '../../types';
 import { electronBridge } from '../../lib/electronBridge';
 
 export default function SettingsTab() {
-  const [appVersion, setAppVersion] = useState<string>('1.0.4');
+  const [appVersion, setAppVersion] = useState<string>('1.1.0');
   const [updateState, setUpdateState] = useState<UpdateState>({
     status: 'idle',
-    version: '1.0.4',
-    message: 'Version 1.0.4 installed. Up-to-date with GitHub release channel.',
+    version: '1.1.0',
+    message: 'Version 1.1.0 installed. Up-to-date with GitHub release channel.',
     lastChecked: 'Just now'
   });
   const [isChecking, setIsChecking] = useState(false);
