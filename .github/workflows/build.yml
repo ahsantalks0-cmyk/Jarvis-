@@ -22,22 +22,62 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build app files
+      - name: Determine Release Version
+        id: version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $v = $pkg.version.Trim()
+          
+          # Check if release tag v$v already exists on GitHub
+          $exists = $false
+          try {
+            $check = gh release view "v$v" 2>&1
+            if ($LASTEXITCODE -eq 0) {
+              $exists = $true
+            }
+          } catch {
+            $exists = $false
+          }
+          
+          if ($exists) {
+            Write-Host "GitHub release v$v already exists. Auto-incrementing version to ensure a fresh release is published..."
+            $parts = $v.Split('.')
+            if ($parts.Length -ge 3) {
+              $patch = [int]$parts[2] + 1
+              $v = "$($parts[0]).$($parts[1]).$patch"
+            } else {
+              $v = "$v.${{ github.run_number }}"
+            }
+            $pkg.version = $v
+            $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+            Write-Host "Updated package.json version to: $v"
+          } else {
+            Write-Host "Using release version: $v"
+          }
+          
+          echo "tag=v$v" >> $env:GITHUB_OUTPUT
+          echo "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Build app installer & update metadata
         run: npm run dist -- --publish never
 
-      - name: Get version from package.json
-        id: version
+      - name: Verify build output artifacts
         run: |
-          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          echo "tag=v$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Listing generated build artifacts in dist/:"
+          Get-ChildItem -Path dist | Format-Table Name, Length, LastWriteTime
 
-      - name: Create release and upload all files
+      - name: Publish GitHub Release for Auto-Updater
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
+          name: "Jarvis ${{ steps.version.outputs.tag }}"
           draft: false
-          fail_on_unmatched_files: true
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
             dist/*.exe
             dist/*.blockmap

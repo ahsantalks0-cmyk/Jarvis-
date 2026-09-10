@@ -6,6 +6,7 @@ publish:
   provider: github
   owner: ahsantalks0-cmyk
   repo: Jarvis-
+  releaseType: release
 
 win:
   target: nsis
