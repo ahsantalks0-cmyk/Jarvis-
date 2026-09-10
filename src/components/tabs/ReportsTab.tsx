@@ -2,8 +2,9 @@ import { Bell, CheckCircle2, ShieldAlert, Sparkles, Filter } from 'lucide-react'
 
 export default function ReportsTab() {
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#06070a] space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#161b27]">
+    <div className="h-full flex flex-col overflow-y-auto bg-[#06070a]">
+      <div className="w-full max-w-5xl mx-auto px-6 md:px-10 py-6 space-y-6 flex-1 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#161b27]">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#0df597]" />
@@ -43,6 +44,7 @@ export default function ReportsTab() {
           <CheckCircle2 className="w-3.5 h-3.5 text-[#0df597]" />
           <span>System Health: 100% Nominal</span>
         </div>
+      </div>
       </div>
     </div>
   );

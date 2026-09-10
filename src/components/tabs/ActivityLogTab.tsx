@@ -45,8 +45,9 @@ export default function ActivityLogTab() {
   );
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#06070a] space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#161b27]">
+    <div className="h-full flex flex-col overflow-y-auto bg-[#06070a]">
+      <div className="w-full max-w-6xl mx-auto px-6 md:px-10 py-6 space-y-6 flex-1 flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#161b27]">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#0df597]" />
@@ -114,6 +115,7 @@ export default function ActivityLogTab() {
       <div className="p-3 rounded-xl bg-[#090c14] border border-[#141824] flex items-center justify-between text-xs font-mono-tech text-slate-500">
         <span>Log retention: Local circular buffer (10,000 items)</span>
         <span className="text-[#0df597]">Active Stream Synced</span>
+      </div>
       </div>
     </div>
   );

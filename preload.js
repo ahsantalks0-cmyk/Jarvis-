@@ -15,10 +15,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Auto-Updater Controls & Listeners
   checkForUpdates: () => ipcRenderer.invoke('updater:check-updates'),
+  installUpdate: () => ipcRenderer.invoke('updater:install-update'),
   onUpdateStatus: (callback) => {
     const subscription = (_event, data) => callback(data);
     ipcRenderer.on('updater:status', subscription);
-    return () => ipcRenderer.removeListener('updater:status', subscription);
+    ipcRenderer.on('update-status', subscription);
+    return () => {
+      ipcRenderer.removeListener('updater:status', subscription);
+      ipcRenderer.removeListener('update-status', subscription);
+    };
   },
 
   // Agent Registry Operations

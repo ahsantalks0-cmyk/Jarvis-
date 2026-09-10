@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { TabType, AgentItem } from './types';
 import Header from './components/Header';
-import Sidebar from './components/Sidebar';
+import TopNav from './components/TopNav';
 import ChatTab from './components/tabs/ChatTab';
 import AgentsTab from './components/tabs/AgentsTab';
 import ThirdPartyAppsTab from './components/tabs/ThirdPartyAppsTab';
@@ -77,33 +77,31 @@ export default function App() {
       {/* Desktop Window Title Bar & Header */}
       <Header />
 
-      {/* Main Workspace: Left Sidebar + Tab View */}
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-          registeredAgentsCount={agents.length}
-        />
+      {/* Horizontal Top Navigation Bar */}
+      <TopNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        registeredAgentsCount={agents.length}
+      />
 
-        {/* Tab Canvas Area with smooth page transition */}
-        <main
-          id="main-tab-viewport"
-          className="flex-1 overflow-hidden relative bg-[#06070a]"
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.16, ease: 'easeOut' }}
-              className="w-full h-full"
-            >
-              {renderTabContent()}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
+      {/* Main Workspace Tab Viewport */}
+      <main
+        id="main-tab-viewport"
+        className="flex-1 overflow-hidden relative bg-[#06070a]"
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="w-full h-full"
+          >
+            {renderTabContent()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
     </div>
   );
 }

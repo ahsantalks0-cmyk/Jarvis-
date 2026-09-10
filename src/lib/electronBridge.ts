@@ -7,6 +7,7 @@ declare global {
       platform: string;
       getVersion: () => Promise<string>;
       checkForUpdates: () => Promise<any>;
+      installUpdate: () => Promise<void>;
       onUpdateStatus: (callback: (data: any) => void) => () => void;
       getAgents: () => Promise<AgentItem[]>;
       toggleAgent: (id: string) => Promise<AgentItem | null>;
@@ -100,8 +101,9 @@ export const electronBridge = {
         const res = await window.electronAPI.checkForUpdates();
         return {
           status: res?.status || 'up-to-date',
-          version: res?.version || '1.0.0',
-          message: res?.message || 'Jarvis v1.0.0 is currently the latest release.',
+          version: res?.version || '1.0.4',
+          message: res?.message || 'Jarvis v1.0.4 is currently the latest release.',
+          percent: res?.percent,
           lastChecked: new Date().toLocaleTimeString()
         };
       } catch (err: any) {
@@ -116,10 +118,18 @@ export const electronBridge = {
     // Web simulation
     return {
       status: 'up-to-date',
-      version: '1.0.0',
-      message: 'Jarvis v1.0.0 is up-to-date with GitHub releases.',
+      version: '1.0.4',
+      message: 'Jarvis is up to date (v1.0.4).',
       lastChecked: new Date().toLocaleTimeString()
     };
+  },
+
+  async installUpdate(): Promise<void> {
+    if (window.electronAPI?.installUpdate) {
+      await window.electronAPI.installUpdate();
+    } else {
+      console.log('[AutoUpdater] Simulated install & restart');
+    }
   },
 
   onUpdateStatus(callback: (state: UpdateState) => void): () => void {
@@ -127,7 +137,7 @@ export const electronBridge = {
       return window.electronAPI.onUpdateStatus((data: any) => {
         callback({
           status: data.status,
-          version: data.version || '1.0.0',
+          version: data.version || '1.0.4',
           message: data.message || '',
           percent: data.percent,
           lastChecked: new Date().toLocaleTimeString()

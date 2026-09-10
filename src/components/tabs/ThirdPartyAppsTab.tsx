@@ -36,8 +36,9 @@ export default function ThirdPartyAppsTab() {
   );
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#06070a] space-y-6">
-      {/* Header bar */}
+    <div className="h-full flex flex-col overflow-y-auto bg-[#06070a]">
+      <div className="w-full max-w-7xl mx-auto px-6 md:px-10 py-6 space-y-6 flex-1 flex flex-col">
+        {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#161b27]">
         <div>
           <div className="flex items-center gap-2">
@@ -178,6 +179,7 @@ export default function ThirdPartyAppsTab() {
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

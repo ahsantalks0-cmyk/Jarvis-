@@ -1,11 +1,28 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, Wifi, Minus, Square, X, Cpu } from 'lucide-react';
+import {
+  ShieldCheck,
+  Wifi,
+  Minus,
+  Square,
+  X,
+  Cpu,
+  Download,
+  CheckCircle2,
+  Sparkles,
+  RefreshCw
+} from 'lucide-react';
 import { electronBridge } from '../lib/electronBridge';
+import { UpdateState } from '../types';
 
 export default function Header() {
   const [time, setTime] = useState<string>('');
+  const [appVersion, setAppVersion] = useState<string>('1.0.4');
+  const [updateState, setUpdateState] = useState<UpdateState | null>(null);
+  const [showUpToDateBriefly, setShowUpToDateBriefly] = useState<boolean>(false);
+  const [isInstalling, setIsInstalling] = useState<boolean>(false);
 
   useEffect(() => {
+    // Live clock
     const updateTime = () => {
       const now = new Date();
       setTime(
@@ -19,8 +36,43 @@ export default function Header() {
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+
+    // Retrieve real app version
+    electronBridge.getVersion().then((v) => {
+      if (v) setAppVersion(v);
+    });
+
+    // Listen to autoUpdater status broadcasts from main process
+    const unsubscribe = electronBridge.onUpdateStatus((state) => {
+      if (state.status === 'up-to-date') {
+        setShowUpToDateBriefly(true);
+        setUpdateState(null);
+        setTimeout(() => {
+          setShowUpToDateBriefly(false);
+        }, 3500);
+      } else if (
+        state.status === 'available' ||
+        state.status === 'downloading' ||
+        state.status === 'downloaded'
+      ) {
+        setUpdateState(state);
+        setShowUpToDateBriefly(false);
+      } else if (state.status === 'idle') {
+        setUpdateState(null);
+        setShowUpToDateBriefly(false);
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsubscribe();
+    };
   }, []);
+
+  const handleInstall = async () => {
+    setIsInstalling(true);
+    await electronBridge.installUpdate();
+  };
 
   return (
     <header
@@ -59,11 +111,68 @@ export default function Header() {
         <span>SYSTEM DESKTOP</span>
       </div>
 
-      {/* Right Controls & Telemetry */}
-      <div className="flex items-center gap-3.5">
+      {/* Right Controls, Telemetry & Auto-Update Indicator */}
+      <div className="flex items-center gap-3">
+        {/* Dynamic Auto-Update Status Area (Stays hidden when nothing to report) */}
+        {/* State 1: Update Available / Downloading with thin animated progress */}
+        {(updateState?.status === 'available' || updateState?.status === 'downloading') && (
+          <div
+            id="header-update-downloading-indicator"
+            className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[#07131e] border border-[#13324d] text-cyan-300 text-[10px] shadow-[0_0_12px_rgba(0,229,255,0.18)] animate-pulse"
+          >
+            <Download className="w-3 h-3 text-[#00e5ff] animate-bounce" />
+            <span>
+              Update v{updateState.version || '1.0.3'} available — downloading
+              {updateState.percent !== undefined ? ` (${updateState.percent}%)` : ''}...
+            </span>
+            {updateState.percent !== undefined && (
+              <div className="w-12 bg-[#102035] h-1.5 rounded-full overflow-hidden ml-0.5">
+                <div
+                  className="bg-[#0df597] h-full transition-all duration-300 shadow-[0_0_8px_#0df597]"
+                  style={{ width: `${updateState.percent}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* State 2: Update Downloaded -> Premium card with "Install & Restart" button */}
+        {updateState?.status === 'downloaded' && (
+          <div
+            id="header-update-downloaded-card"
+            className="flex items-center gap-2 px-2.5 py-0.5 rounded-lg bg-[#0a1813] border border-[#1b4332] text-[#0df597] text-[10px] shadow-[0_0_15px_rgba(13,245,151,0.25)]"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#0df597]" />
+            <span className="font-semibold text-slate-100">
+              Update v{updateState.version || '1.0.3'} Ready
+            </span>
+            <button
+              id="header-btn-install-restart"
+              onClick={handleInstall}
+              disabled={isInstalling}
+              className="px-2 py-0.5 rounded bg-[#0df597] text-[#06080d] hover:bg-[#0be08a] font-bold text-[9px] tracking-wider transition-all shadow-[0_0_8px_rgba(13,245,151,0.4)] flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw className={`w-2.5 h-2.5 ${isInstalling ? 'animate-spin' : ''}`} />
+              <span>{isInstalling ? 'INSTALLING...' : 'INSTALL & RESTART'}</span>
+            </button>
+          </div>
+        )}
+
+        {/* State 3: Up to date brief toast (fades out automatically) */}
+        {showUpToDateBriefly && (
+          <div
+            id="header-up-to-date-toast"
+            className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#091512] border border-[#133024] text-[#0df597] text-[10px] animate-fade-in"
+          >
+            <CheckCircle2 className="w-3 h-3 text-[#0df597]" />
+            <span>Jarvis is up to date</span>
+          </div>
+        )}
+
+        {/* Version Badge */}
         <div className="flex items-center gap-2 text-[10px] text-slate-400">
           <span className="px-1.5 py-0.5 rounded bg-[#0e131d] border border-[#1c2436] text-slate-300 font-medium">
-            v1.0.1
+            v{appVersion}
           </span>
           <div className="flex items-center gap-1 text-[#0df597]">
             <ShieldCheck className="w-3 h-3" />

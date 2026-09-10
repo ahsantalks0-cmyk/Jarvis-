@@ -1,30 +1,28 @@
 import { useState, useEffect } from 'react';
 import {
-  Settings,
   RefreshCw,
+  Download,
   CheckCircle2,
   AlertCircle,
-  Download,
-  Github,
-  HardDrive,
-  Cpu,
-  Monitor,
-  Sliders,
-  Check,
   Shield,
-  Layers
+  Sliders,
+  HardDrive,
+  Github,
+  Sparkles
 } from 'lucide-react';
 import { UpdateState, UpdateStatus } from '../../types';
 import { electronBridge } from '../../lib/electronBridge';
 
 export default function SettingsTab() {
+  const [appVersion, setAppVersion] = useState<string>('1.0.4');
   const [updateState, setUpdateState] = useState<UpdateState>({
     status: 'idle',
-    version: '1.0.1',
-    message: 'Version 1.0.1 installed. Up-to-date with GitHub release channel.',
+    version: '1.0.4',
+    message: 'Version 1.0.4 installed. Up-to-date with GitHub release channel.',
     lastChecked: 'Just now'
   });
   const [isChecking, setIsChecking] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   // General toggles
   const [autoLaunch, setAutoLaunch] = useState(false);
@@ -36,6 +34,7 @@ export default function SettingsTab() {
     // Check real app version from Electron
     electronBridge.getVersion().then((v) => {
       if (v) {
+        setAppVersion(v);
         setUpdateState((prev) => ({
           ...prev,
           version: v,
@@ -56,7 +55,7 @@ export default function SettingsTab() {
     setIsChecking(true);
     setUpdateState({
       status: 'checking',
-      version: '1.0.1',
+      version: appVersion,
       message: 'Connecting to GitHub repository releases (ahsantalks0-cmyk/Jarvis-)...',
       lastChecked: new Date().toLocaleTimeString()
     });
@@ -77,13 +76,18 @@ export default function SettingsTab() {
     }
   };
 
+  const handleInstallUpdate = async () => {
+    setIsInstalling(true);
+    await electronBridge.installUpdate();
+  };
+
   const simulateUpdateStatus = (status: UpdateStatus) => {
     switch (status) {
       case 'checking':
         setIsChecking(true);
         setUpdateState({
           status: 'checking',
-          version: '1.0.0',
+          version: appVersion,
           message: 'Connecting to GitHub releases pipeline...',
           lastChecked: new Date().toLocaleTimeString()
         });
@@ -92,8 +96,8 @@ export default function SettingsTab() {
         setIsChecking(false);
         setUpdateState({
           status: 'available',
-          version: '1.0.1',
-          message: 'New update available: v1.0.1 (Draft release found on GitHub)',
+          version: '1.0.4',
+          message: 'New update available: v1.0.4 (Release found on GitHub)',
           lastChecked: new Date().toLocaleTimeString()
         });
         break;
@@ -101,9 +105,18 @@ export default function SettingsTab() {
         setIsChecking(false);
         setUpdateState({
           status: 'downloading',
-          version: '1.0.1',
-          percent: 68,
-          message: 'Downloading update binary package from GitHub (68%)...',
+          version: '1.0.4',
+          percent: 72,
+          message: 'Downloading update binary package from GitHub (72%)...',
+          lastChecked: new Date().toLocaleTimeString()
+        });
+        break;
+      case 'downloaded':
+        setIsChecking(false);
+        setUpdateState({
+          status: 'downloaded',
+          version: '1.0.4',
+          message: 'Update v1.0.4 downloaded and ready to install. Restart to apply.',
           lastChecked: new Date().toLocaleTimeString()
         });
         break;
@@ -111,8 +124,8 @@ export default function SettingsTab() {
         setIsChecking(false);
         setUpdateState({
           status: 'up-to-date',
-          version: '1.0.0',
-          message: 'Jarvis is up to date (v1.0.0). No newer releases found.',
+          version: appVersion,
+          message: `Jarvis is up to date (v${appVersion}). No newer releases found.`,
           lastChecked: new Date().toLocaleTimeString()
         });
         break;
@@ -120,7 +133,7 @@ export default function SettingsTab() {
         setIsChecking(false);
         setUpdateState({
           status: 'error',
-          version: '1.0.0',
+          version: appVersion,
           message: 'GitHub rate limit exceeded or connection timed out.',
           lastChecked: new Date().toLocaleTimeString()
         });
@@ -129,7 +142,7 @@ export default function SettingsTab() {
         setIsChecking(false);
         setUpdateState({
           status: 'idle',
-          version: '1.0.0',
+          version: appVersion,
           message: 'Ready to check releases.',
           lastChecked: new Date().toLocaleTimeString()
         });
@@ -137,8 +150,9 @@ export default function SettingsTab() {
   };
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-y-auto bg-[#06070a] space-y-6">
-      {/* Header bar */}
+    <div className="h-full flex flex-col overflow-y-auto bg-[#06070a]">
+      <div className="w-full max-w-5xl mx-auto px-6 md:px-10 py-6 space-y-6 flex-1 flex flex-col">
+        {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#161b27]">
         <div>
           <div className="flex items-center gap-2">
@@ -157,18 +171,18 @@ export default function SettingsTab() {
 
         <div className="flex items-center gap-2 text-xs font-mono-tech text-slate-400">
           <Github className="w-4 h-4 text-slate-300" />
-          <span>ahsantalks0-cmyk/jarvis</span>
+          <span>ahsantalks0-cmyk/Jarvis-</span>
         </div>
       </div>
 
-      {/* AUTO-UPDATER SECTION (Required requirement 2) */}
+      {/* AUTO-UPDATER SECTION */}
       <div className="p-5 rounded-2xl bg-[#0b0e16] border border-[#161c2b] space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#141825] pb-3.5">
           <div className="flex items-center gap-2.5">
             <RefreshCw className={`w-4 h-4 text-[#0df597] ${isChecking ? 'animate-spin' : ''}`} />
             <div>
               <h2 className="text-sm font-tech font-bold text-slate-200 uppercase tracking-wide">
-                Auto-Updater Pipeline (electron-updater)
+                Updates & Releases (electron-updater)
               </h2>
               <span className="text-[10px] font-mono-tech text-slate-500">
                 GITHUB RELEASES CI/CD PIPELINE • DRAFT RELEASE CHANNEL
@@ -180,7 +194,7 @@ export default function SettingsTab() {
             id="btn-check-updates"
             onClick={handleCheckForUpdates}
             disabled={isChecking}
-            className="px-4 py-2 rounded-xl bg-[#0df597] text-[#06080d] font-bold text-xs hover:bg-[#0be08a] transition-all flex items-center gap-2 font-tech tracking-wider uppercase shadow-[0_0_15px_rgba(13,245,151,0.25)] disabled:opacity-60"
+            className="px-4 py-2 rounded-xl bg-[#0df597] text-[#06080d] font-bold text-xs hover:bg-[#0be08a] transition-all flex items-center gap-2 font-tech tracking-wider uppercase shadow-[0_0_15px_rgba(13,245,151,0.25)] disabled:opacity-60 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin' : ''}`} />
             <span>{isChecking ? 'CHECKING...' : 'CHECK FOR UPDATES'}</span>
@@ -193,7 +207,7 @@ export default function SettingsTab() {
             <div className="flex items-center gap-2">
               <span className="text-slate-500">CURRENT INSTALLED VERSION:</span>
               <span className="px-2 py-0.5 rounded bg-[#0d121e] border border-[#1d273a] text-slate-100 font-bold">
-                v1.0.0
+                v{appVersion}
               </span>
             </div>
             <div className="text-slate-500 text-[11px]">
@@ -211,6 +225,9 @@ export default function SettingsTab() {
             )}
             {updateState.status === 'downloading' && (
               <Download className="w-4 h-4 text-cyan-400 animate-bounce shrink-0 mt-0.5" />
+            )}
+            {updateState.status === 'downloaded' && (
+              <Sparkles className="w-4 h-4 text-[#0df597] shrink-0 mt-0.5" />
             )}
             {updateState.status === 'up-to-date' && (
               <CheckCircle2 className="w-4 h-4 text-[#0df597] shrink-0 mt-0.5" />
@@ -246,13 +263,32 @@ export default function SettingsTab() {
                   />
                 </div>
               )}
+
+              {/* Action Banner if downloaded */}
+              {updateState.status === 'downloaded' && (
+                <div className="mt-3 flex items-center justify-between p-3 rounded-lg bg-[#0a1813] border border-[#1b4332]">
+                  <div className="flex items-center gap-2 text-xs text-[#0df597] font-mono-tech">
+                    <CheckCircle2 className="w-4 h-4 text-[#0df597]" />
+                    <span>Update package ready. Restart to complete installation.</span>
+                  </div>
+                  <button
+                    id="btn-install-restart"
+                    onClick={handleInstallUpdate}
+                    disabled={isInstalling}
+                    className="px-3.5 py-1.5 rounded-lg bg-[#0df597] text-[#06080d] font-bold text-xs hover:bg-[#0be08a] transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(13,245,151,0.35)] cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isInstalling ? 'animate-spin' : ''}`} />
+                    <span>{isInstalling ? 'INSTALLING...' : 'INSTALL & RESTART'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Developer Status Simulation Controls (Allows user to preview all states) */}
           <div className="pt-2 border-t border-[#121622] flex flex-wrap items-center gap-2 text-[10px] font-mono-tech">
             <span className="text-slate-500">PREVIEW STATE:</span>
-            {(['checking', 'available', 'downloading', 'up-to-date', 'error'] as UpdateStatus[]).map((st) => (
+            {(['checking', 'available', 'downloading', 'downloaded', 'up-to-date', 'error'] as UpdateStatus[]).map((st) => (
               <button
                 key={st}
                 onClick={() => simulateUpdateStatus(st)}
@@ -269,7 +305,7 @@ export default function SettingsTab() {
         </div>
       </div>
 
-      {/* PACKAGE.JSON SPECIFICATIONS (Requirement 3) */}
+      {/* PACKAGE.JSON SPECIFICATIONS */}
       <div className="p-5 rounded-2xl bg-[#0b0e16] border border-[#161c2b] space-y-4">
         <div className="flex items-center gap-2.5 border-b border-[#141825] pb-3">
           <HardDrive className="w-4 h-4 text-[#0df597]" />
@@ -291,20 +327,20 @@ export default function SettingsTab() {
           </div>
 
           <div className="p-3 rounded-xl bg-[#07090f] border border-[#141926]">
-            <div className="text-[10px] text-slate-500">APPLICATION ID</div>
+            <div className="text-[10px] text-slate-500">APPLICATION ID & VERSION</div>
             <div className="text-slate-200 font-bold mt-0.5">com.ahsan.jarvis</div>
-            <div className="text-[10px] text-slate-500 mt-1">Version: 1.0.0</div>
+            <div className="text-[10px] text-[#0df597] mt-1">Version: {appVersion}</div>
           </div>
 
           <div className="p-3 rounded-xl bg-[#07090f] border border-[#141926]">
-            <div className="text-[10px] text-slate-500">BUILD TARGET</div>
-            <div className="text-slate-200 font-bold mt-0.5">Windows NSIS</div>
-            <div className="text-[10px] text-slate-500 mt-1">Dist Script: electron-builder</div>
+            <div className="text-[10px] text-slate-500">GITHUB REPOSITORY</div>
+            <div className="text-slate-200 font-bold mt-0.5">Jarvis-</div>
+            <div className="text-[10px] text-slate-500 mt-1">Owner: ahsantalks0-cmyk</div>
           </div>
         </div>
       </div>
 
-      {/* GENERAL DESKTOP SETTINGS (Requirement 4) */}
+      {/* GENERAL DESKTOP SETTINGS */}
       <div className="p-5 rounded-2xl bg-[#0b0e16] border border-[#161c2b] space-y-4">
         <div className="flex items-center gap-2.5 border-b border-[#141825] pb-3">
           <Sliders className="w-4 h-4 text-[#0df597]" />
@@ -411,6 +447,7 @@ export default function SettingsTab() {
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

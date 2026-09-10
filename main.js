@@ -23,6 +23,9 @@ autoUpdater.autoInstallOnAppQuit = true;
 function sendToWindow(channel, data) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, data);
+    if (channel !== 'update-status') {
+      mainWindow.webContents.send('update-status', data);
+    }
   }
 }
 
@@ -170,6 +173,37 @@ ipcMain.handle('updater:check-updates', async () => {
       message: error?.message || 'Failed to check GitHub releases'
     };
   }
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  if (!app.isPackaged) {
+    return {
+      status: 'up-to-date',
+      simulated: true,
+      version: app.getVersion(),
+      message: `Running in development mode. Version ${app.getVersion()} is active.`
+    };
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    return {
+      status: 'checking',
+      updateInfo: result?.updateInfo
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error?.message || 'Failed to check GitHub releases'
+    };
+  }
+});
+
+ipcMain.handle('updater:install-update', () => {
+  autoUpdater.quitAndInstall(false, true);
+});
+
+ipcMain.handle('install-update', () => {
+  autoUpdater.quitAndInstall(false, true);
 });
 
 ipcMain.handle('agent-registry:get-all', () => {

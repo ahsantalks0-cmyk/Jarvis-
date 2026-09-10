@@ -48,8 +48,9 @@ export default function AutomationsTab() {
   ];
 
   return (
-    <div className="h-full flex flex-col p-6 overflow-hidden bg-[#06070a] space-y-4">
-      {/* Top action header (matching screenshot 5) */}
+    <div className="h-full flex flex-col overflow-y-auto bg-[#06070a]">
+      <div className="w-full max-w-7xl mx-auto px-6 md:px-10 py-6 space-y-5 flex-1 flex flex-col">
+        {/* Top action header (matching screenshot 5) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#161b27]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[#0df597]" />
@@ -132,6 +133,7 @@ export default function AutomationsTab() {
             Pipeline Orchestration Engine • Scheduled for Phase 3
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

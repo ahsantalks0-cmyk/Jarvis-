@@ -10,6 +10,8 @@ export type TabType =
   | 'automations'
   | 'settings';
 
+export type JarvisMode = 'idle' | 'listening' | 'thinking' | 'speaking';
+
 export interface AgentItem {
   id: string;
   name: string;
@@ -26,6 +28,7 @@ export type UpdateStatus =
   | 'checking'
   | 'available'
   | 'downloading'
+  | 'downloaded'
   | 'up-to-date'
   | 'error';
 
